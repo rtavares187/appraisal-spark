@@ -3,24 +3,26 @@ package appraisal.spark.algorithm
 import appraisal.spark.entities._
 import org.apache.spark.sql._
 import org.apache.spark.sql.functions._
+import appraisal.spark.util.Util
 
 object Avg {
   
-  val toDouble = udf[Option[Double], String](x => if(x != null) Some(x.toDouble) else None)
-  val toLong = udf[Long, String](_.toLong)
-  
   def run(idf: DataFrame, attribute: String): Entities.ImputationResult = {
     
-    idf.createOrReplaceTempView("originaldb")
+    var attIndex = idf.columns.indexOf(attribute)
     
-    val avgValue = idf.sqlContext.sql("select avg(" + attribute + ") from originaldb o where o." + attribute + " is not null").head().getAs[Double](0)
+    val fidf = idf.withColumn("lineId", monotonically_increasing_id).filter(r => r.get(attIndex) != null && Util.isNumeric(r.get(attIndex).toString()))
     
-    val columndf = idf.sqlContext.sql("select " + attribute  + " as originalValue from originaldb").withColumn("originalValue", toDouble(col("originalValue")))
+    fidf.createOrReplaceTempView("originaldb")
+    val avgValue = fidf.sqlContext.sql("select avg(" + attribute + ") from originaldb o where o." + attribute + " is not null").head().getAs[Double](0)
     
-    val rdf = columndf.withColumn("imputationValue", when(col("originalValue").isNotNull, toDouble(col("originalValue"))).otherwise(avgValue))
-    .withColumn("lineId", monotonically_increasing_id).rdd.filter(row => row.get(0) == null)
+    val rdf = fidf.withColumn("originalValue", Util.toDouble(col(attribute))).drop(attribute)
+    .withColumn("imputationValue", when(col("originalValue").isNotNull, col("originalValue")).otherwise(avgValue))
     
-    Entities.ImputationResult(rdf.map(r => Entities.Result(r.getLong(2), Some(r.getAs[Double](0)), r.getAs[Double](1))))
+    rdf.createOrReplaceTempView("result")
+    val result = rdf.sqlContext.sql("select lineid, originalValue, imputationValue from result where originalValue is null").rdd
+    
+    Entities.ImputationResult(result.map(r => Entities.Result(r.getLong(0), Some(r.getAs[Double](1)), r.getAs[Double](2))))
     
   }
   
