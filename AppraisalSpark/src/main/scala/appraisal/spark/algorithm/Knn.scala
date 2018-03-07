@@ -5,34 +5,36 @@ import org.apache.spark.sql._
 import org.apache.spark.sql.functions._
 import org.apache.spark.rdd._
 import org.apache.spark.sql.types._
+import org.apache.spark.broadcast._
 import scala.collection.mutable.ListBuffer
 import appraisal.spark.util.Util
 
 object Knn {
   
-  def knn(fidf: DataFrame, k: Int): DataFrame = {
+  def knn(fidf: DataFrame, k: Int): RDD[(Long, Option[Double], Double)] = {
     
     val lIdIndex = fidf.columns.indexOf("lineId")
     val oValIndex = fidf.columns.indexOf("originalValue")
     val ignoreIndex : Array[Int] = Array(lIdIndex, oValIndex)
     
-    val cidf = fidf.filter(_.get(oValIndex) != null).cache()
+    val context = fidf.sparkSession.sparkContext
+    val cidf = context.broadcast(fidf.filter(_.get(oValIndex) != null).toDF())
     
-    val rdf = fidf.rdd.map(row => (row.getLong(lIdIndex), row.getDouble(oValIndex), knn(row, cidf, k, ignoreIndex))).map(Row(_))
+    val rdf :RDD[(Long, Option[Double], Double)] = fidf.rdd.map(row => {
+      
+      val lineId = row.getLong(lIdIndex)
+      val originalValue :Option[Double] = if(row.get(oValIndex) != null) Some(row.getDouble(oValIndex)) else null
+      val imputationValue = if(row.get(oValIndex) != null) row.getDouble(oValIndex) else knn(row, cidf, k, ignoreIndex)
+      
+      (lineId, 
+       originalValue, 
+       imputationValue)})
     
-    val schema = StructType(List(StructField("lineId", LongType, nullable = true),
-                                StructField("originalValue", DoubleType, nullable = true),
-                                StructField("imputationValue", DoubleType, nullable = true)))
-    fidf.sqlContext.createDataFrame(rdf, schema)
+    rdf
     
   }
   
-  def knn(row: Row, cidf: Dataset[Row], k: Int, ignoreIndex : Array[Int]): Double = {
-    
-    val oValIndex = cidf.columns.indexOf("originalValue")
-    
-    if(row.get(oValIndex) != null)
-      return row.getDouble(oValIndex)
+  def knn(row: Row, cidf: Broadcast[DataFrame], k: Int, ignoreIndex : Array[Int]): Double = {
     
     val dist = Util.euclidianDist(row, cidf, ignoreIndex).sortBy(_._3, false)
     
@@ -67,12 +69,9 @@ object Knn {
     rlist.toList.foreach(l => fidf = fidf.drop(l))
     fidf = fidf.withColumn("originalValue", Util.toDouble(col(attribute))).drop(attribute)
     
-    var rdf = knn(fidf, k)
+    val rdf = knn(fidf, k).filter(_._2 == null)
     
-    rdf.createOrReplaceTempView("result")
-    val result = rdf.sqlContext.sql("select lineid, originalValue, imputationValue from result where originalValue is null").rdd
-    
-    Entities.ImputationResult(result.map(r => Entities.Result(r.getLong(0), Some(r.getAs[Double](1)), r.getAs[Double](2))))
+    Entities.ImputationResult(rdf.map(r => Entities.Result(r._1, r._2, r._3)))
     
   }
   

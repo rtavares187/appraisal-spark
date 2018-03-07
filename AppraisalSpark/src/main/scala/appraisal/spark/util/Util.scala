@@ -3,6 +3,8 @@ package appraisal.spark.util
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql._
 import org.apache.spark.rdd._
+import org.apache.spark.broadcast._
+import appraisal.spark.entities._
 
 object Util {
   
@@ -16,7 +18,7 @@ object Util {
     
     var dist = 0d
     
-    for(i <- 0 to ccCount){
+    for(i <- 0 to (ccCount - 1)){
       
       if(!ignoreIndex.contains(i)){
         
@@ -30,14 +32,16 @@ object Util {
     
   }
   
-  def euclidianDist(row: Row, cidf: DataFrame, ignoreIndex : Array[Int]): RDD[(Long, Double, Double)] = {
+  def euclidianDist(row: Row, cidf: Broadcast[DataFrame], ignoreIndex : Array[Int]): RDD[(Long, Double, Double)] = {
     
-    val lIdIndex = cidf.columns.indexOf("lineId")
-    val oValIndex = cidf.columns.indexOf("originalValue")
-    val ccCount = cidf.columns.length
+    val ecidf = cidf.value
     
-    cidf.rdd.map(rowc => (rowc.getLong(lIdIndex), rowc.getDouble(oValIndex) , euclidianDist(row, rowc, ignoreIndex, ccCount)))
+    val lIdIndex = ecidf.columns.indexOf("lineId")
+    val oValIndex = ecidf.columns.indexOf("originalValue")
+    val ccCount = ecidf.columns.length
     
-  }  
+    ecidf.rdd.map(rowc => (rowc.getLong(lIdIndex), rowc.getDouble(oValIndex) , euclidianDist(row, rowc, ignoreIndex, ccCount)))
+    
+  }
   
 }

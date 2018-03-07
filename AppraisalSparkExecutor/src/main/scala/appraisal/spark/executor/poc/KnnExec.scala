@@ -7,6 +7,7 @@ import org.apache.log4j._
 import appraisal.spark.algorithm.Knn
 import appraisal.spark.eraser.Eraser
 import appraisal.spark.executor.util.Util
+import appraisal.spark.statistic._
 
 object KnnExec {
   
@@ -31,20 +32,26 @@ object KnnExec {
           //"code_number",
           "clump_thickness",
           "uniformity_of_cell_size",
-          //"uniformity_of_cell_shape",
-          //"marginal_adhesion",
-          //"single_epithelial_cell_size",
+          "uniformity_of_cell_shape",
+          "marginal_adhesion",
+          "single_epithelial_cell_size",
           "bare_nuclei",
-          //"bland_chromatin",
+          "bland_chromatin",
           "normal_nucleoli",
-          //"mitoses",
+          "mitoses",
           "class")
       
-      val idf = Eraser.run(df, "uniformity_of_cell_size", percent._1)
+      val idf = Eraser.run(df, attributes(1), percent._1)
       
       val imputationResult = Knn.run(idf, 10, attributes(1), attributes)
       
-      imputationResult.result.foreach(println(_))
+      val sImputationResult = Statistic.statisticInfo(df, attributes(1), imputationResult)
+      
+      sImputationResult.result.foreach(println(_))
+      
+      println("totalError: " + sImputationResult.totalError)
+      println("averageError: " + sImputationResult.avgError)
+      println("avgPercentError: " + sImputationResult.avgPercentError)
       
     }catch{
       
