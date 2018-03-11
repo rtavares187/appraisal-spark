@@ -18,7 +18,8 @@ object Eraser {
    val niddf = nodf.sqlContext.sql("select atid from originaldb order by rand() limit " + qtd)
    niddf.createOrReplaceTempView("niddf")
    
-   val ncoldf = niddf.sqlContext.sql("select o.atid, case when o.atid == n.atid then null else o." + attribute + " end as ncolumn from originaldb o left join niddf n on o.atid = n.atid")
+   val ncoldf = niddf.sqlContext.sql("select o.atid, case when o.atid == n.atid then null else o." 
+   + attribute + " end as ncolumn from originaldb o left join niddf n on o.atid = n.atid")
    ncoldf.createOrReplaceTempView("ncoldf")
    
    var rdf = niddf.sqlContext.sql("select o.*, n.ncolumn from originaldb o, ncoldf n where o.atid == n.atid")

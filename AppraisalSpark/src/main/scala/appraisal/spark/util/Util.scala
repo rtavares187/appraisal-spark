@@ -44,4 +44,21 @@ object Util {
     
   }
   
+  def filterNullAndNonNumeric(df: DataFrame): DataFrame = {
+    
+    var rdf = df
+    
+    for(i <- 0 to (df.columns.length - 1))
+      rdf = rdf.filter(r => r.get(i) != null && Util.isNumeric(r.get(i).toString()))
+    
+      rdf
+      
+  }
+  
+  def filterNullAndNonNumericByAtt(df: DataFrame, attIndex: Int): DataFrame = {
+    
+    df.filter(r => r.get(attIndex) != null && Util.isNumeric(r.get(attIndex).toString()))
+  
+  }
+  
 }

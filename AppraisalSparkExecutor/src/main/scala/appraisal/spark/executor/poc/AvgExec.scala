@@ -8,6 +8,7 @@ import appraisal.spark.executor.util.Util
 import appraisal.spark.eraser.Eraser
 import appraisal.spark.entities._
 import appraisal.spark.algorithm._
+import appraisal.spark.statistic._
 
 object AvgExec {
   
@@ -24,7 +25,7 @@ object AvgExec {
         .config("spark.sql.warehouse.dir", "file:///C:/temp") // Necessary to work around a Windows bug in Spark 2.0.0; omit if you're not on Windows.
         .getOrCreate()
       
-      var df = Util.loadBreastCancer(spark)
+      val df = Util.loadBreastCancer(spark)
       
       val percent = (10, 20, 30, 40, 50)
       
@@ -35,6 +36,14 @@ object AvgExec {
       val imputationResult = Avg.run(idf, attributes._2)
       
       imputationResult.result.foreach(println(_))
+      
+      val sImputationResult = Statistic.statisticInfo(df, attributes._2, imputationResult)
+      
+      sImputationResult.result.foreach(println(_))
+      
+      println("totalError: " + sImputationResult.totalError)
+      println("averageError: " + sImputationResult.avgError)
+      println("avgPercentError: " + sImputationResult.avgPercentError)
       
     }catch{
       

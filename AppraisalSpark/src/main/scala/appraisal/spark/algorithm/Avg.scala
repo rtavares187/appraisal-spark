@@ -11,10 +11,12 @@ object Avg {
     
     var attIndex = idf.columns.indexOf(attribute)
     
-    val fidf = idf.withColumn("lineId", monotonically_increasing_id).filter(r => r.get(attIndex) != null && Util.isNumeric(r.get(attIndex).toString()))
+    val fidf = idf.withColumn("lineId", monotonically_increasing_id)
+      
+    val avgidf = Util.filterNullAndNonNumericByAtt(fidf, attIndex)
+    avgidf.createOrReplaceTempView("originaldb")
     
-    fidf.createOrReplaceTempView("originaldb")
-    val avgValue = fidf.sqlContext.sql("select avg(" + attribute + ") from originaldb o where o." + attribute + " is not null").head().getAs[Double](0)
+    val avgValue = avgidf.sqlContext.sql("select avg(" + attribute + ") from originaldb").head().getAs[Double](0)
     
     val rdf = fidf.withColumn("originalValue", Util.toDouble(col(attribute))).drop(attribute)
     .withColumn("imputationValue", when(col("originalValue").isNotNull, col("originalValue")).otherwise(avgValue))
@@ -22,7 +24,13 @@ object Avg {
     rdf.createOrReplaceTempView("result")
     val result = rdf.sqlContext.sql("select lineid, originalValue, imputationValue from result where originalValue is null").rdd
     
-    Entities.ImputationResult(result.map(r => Entities.Result(r.getLong(0), Some(r.getAs[Double](1)), r.getAs[Double](2))))
+    Entities.ImputationResult(result.map(r => {
+      
+      val lineId = r.getLong(0)
+      val originalValue :Option[Double] = if(r.get(1) != null) Some(r.getDouble(1)) else null
+      val imputationValue = if(r.get(1) != null) r.getDouble(1) else r.getDouble(2)
+      
+      Entities.Result(lineId, originalValue, imputationValue)}))
     
   }
   

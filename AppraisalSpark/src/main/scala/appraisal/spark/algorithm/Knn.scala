@@ -59,7 +59,7 @@ object Knn {
         
         }else{
           
-          fidf = fidf.filter(r => r.get(i) != null && Util.isNumeric(r.get(i).toString())).withColumn(columns(i), Util.toDouble(col(columns(i))))
+          fidf = Util.filterNullAndNonNumericByAtt(fidf, i).withColumn(columns(i), Util.toDouble(col(columns(i))))
           
         }
       }
@@ -67,6 +67,7 @@ object Knn {
     }
     
     rlist.toList.foreach(l => fidf = fidf.drop(l))
+    
     fidf = fidf.withColumn("originalValue", Util.toDouble(col(attribute))).drop(attribute)
     
     val rdf = knn(fidf, k).filter(_._2 == null)

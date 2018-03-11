@@ -45,6 +45,8 @@ object KnnExec {
       
       val imputationResult = Knn.run(idf, 10, attributes(1), attributes)
       
+      imputationResult.result.foreach(println(_))
+      
       val sImputationResult = Statistic.statisticInfo(df, attributes(1), imputationResult)
       
       sImputationResult.result.foreach(println(_))
