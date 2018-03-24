@@ -212,6 +212,6 @@
 	<classpathentry kind="lib" path="L:/spark-2.2.1-bin-hadoop2.7/jars/xmlenc-0.52.jar"/>
 	<classpathentry kind="lib" path="L:/spark-2.2.1-bin-hadoop2.7/jars/xz-1.0.jar"/>
 	<classpathentry kind="lib" path="L:/spark-2.2.1-bin-hadoop2.7/jars/zookeeper-3.4.6.jar"/>
-	<classpathentry kind="lib" path="L:/spark_workspaces/appraisalSpark/AppraisalSpark/target/scala-2.11/appraisalspark_2.11-1.0.jar"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/AppraisalSpark"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

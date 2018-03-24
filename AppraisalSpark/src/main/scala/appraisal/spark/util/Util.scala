@@ -44,14 +44,18 @@ object Util {
     
   }
   
-  def filterNullAndNonNumeric(df: DataFrame): DataFrame = {
+  def filterNullAndNonNumeric(df: DataFrame, ignoreColumns: Option[Array[String]] = Some(Array(""))): DataFrame = {
     
     var rdf = df
     
-    for(i <- 0 to (df.columns.length - 1))
-      rdf = rdf.filter(r => r.get(i) != null && Util.isNumeric(r.get(i).toString()))
+    for(i <- 0 to (df.columns.length - 1)){
+      
+      if(!ignoreColumns.contains(df.columns(i)))
+        rdf = rdf.filter(r => r.get(i) != null && Util.isNumeric(r.get(i).toString()))
+      
+    }
     
-      rdf
+    rdf
       
   }
   
