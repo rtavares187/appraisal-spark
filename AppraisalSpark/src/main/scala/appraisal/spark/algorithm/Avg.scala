@@ -9,11 +9,9 @@ object Avg {
   
   def run(idf: DataFrame, attribute: String): Entities.ImputationResult = {
     
-    var attIndex = idf.columns.indexOf(attribute)
-    
-    val fidf = idf.withColumn("lineId", monotonically_increasing_id)
+    val fidf = idf
       
-    val avgidf = Util.filterNullAndNonNumericByAtt(fidf, attIndex)
+    val avgidf = Util.filterNullAndNonNumericByAtt(fidf, idf.columns.indexOf(attribute))
     avgidf.createOrReplaceTempView("originaldb")
     
     val avgValue = avgidf.sqlContext.sql("select avg(" + attribute + ") from originaldb").head().getAs[Double](0)

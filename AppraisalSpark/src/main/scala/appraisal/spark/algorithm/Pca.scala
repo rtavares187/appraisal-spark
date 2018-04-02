@@ -1,5 +1,6 @@
 package appraisal.spark.algorithm
 
+import appraisal.spark.interfaces.SelectionAlgorithm
 import org.apache.spark.mllib.linalg.Vectors
 import org.apache.spark.mllib.linalg.distributed.RowMatrix
 import org.apache.spark.sql._
@@ -7,7 +8,7 @@ import org.apache.spark.sql.functions._
 import appraisal.spark.entities._
 import appraisal.spark.util.Util
 
-object Pca {
+object Pca extends SelectionAlgorithm {
   
   def run(idf: DataFrame, attribute: String, attributes: Array[String], percent: Double): Entities.SelectionResult = {
     
@@ -16,7 +17,7 @@ object Pca {
     
     val context = remidf.sparkSession.sparkContext
     
-    val fidf = context.broadcast(Util.filterNullAndNonNumeric(remidf, Some(Array())))
+    val fidf = context.broadcast(Util.filterNullAndNonNumeric(remidf))
     
     val columns = fidf.value.columns
     

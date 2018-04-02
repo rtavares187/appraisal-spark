@@ -15,7 +15,9 @@ object KMeans {
     
     val context = remidf.sparkSession.sparkContext
     
-    val fidf = context.broadcast(Util.filterNullAndNonNumeric(remidf.withColumn("lineId", monotonically_increasing_id), Some(Array("lineId", attribute))))
+    val calcCol = attributes.drop(attributes.indexOf(attribute))
+    
+    val fidf = context.broadcast(Util.filterNullAndNonNumeric(remidf, calcCol))
     
     val attributeIndex = fidf.value.columns.indexOf(attribute)
     

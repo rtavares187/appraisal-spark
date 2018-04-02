@@ -8,6 +8,7 @@ import appraisal.spark.algorithm.Knn
 import appraisal.spark.eraser.Eraser
 import appraisal.spark.executor.util.Util
 import appraisal.spark.statistic._
+import org.apache.spark.sql.functions._
 
 object KnnExec {
   
@@ -41,18 +42,16 @@ object KnnExec {
           "mitoses",
           "class")
       
-      val idf = Eraser.run(df, attributes(1), percent._1)
+      val idf = Eraser.run(df, attributes(1), percent._1).withColumn("lineId", monotonically_increasing_id)
       
-      val imputationResult = Knn.run(idf, 10, attributes(1), attributes)
-      
-      imputationResult.result.foreach(println(_))
+      val imputationResult = Knn.run(idf, percent._1, attributes(1), attributes)
       
       val sImputationResult = Statistic.statisticInfo(df, attributes(1), imputationResult)
       
       sImputationResult.result.foreach(println(_))
       
       println("totalError: " + sImputationResult.totalError)
-      println("averageError: " + sImputationResult.avgError)
+      println("avgError: " + sImputationResult.avgError)
       println("avgPercentError: " + sImputationResult.avgPercentError)
       
     }catch{

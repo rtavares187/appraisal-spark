@@ -9,6 +9,7 @@ import appraisal.spark.eraser.Eraser
 import appraisal.spark.entities._
 import appraisal.spark.algorithm._
 import appraisal.spark.statistic._
+import org.apache.spark.sql.functions._
 
 object AvgExec {
   
@@ -29,20 +30,29 @@ object AvgExec {
       
       val percent = (10, 20, 30, 40, 50)
       
-      val attributes = ("code_number","clump_thickness","uniformity_of_cell_size","uniformity_of_cell_shape","marginal_adhesion","single_epithelial_cell_size","bare_nuclei","bland_chromatin","normal_nucleoli","mitoses","class")
+      val attributes = Array[String](
+          //"code_number",
+          "clump_thickness",
+          "uniformity_of_cell_size",
+          "uniformity_of_cell_shape",
+          "marginal_adhesion",
+          "single_epithelial_cell_size",
+          "bare_nuclei",
+          "bland_chromatin",
+          "normal_nucleoli",
+          "mitoses",
+          "class")
       
-      val idf = Eraser.run(df, attributes._2, percent._1)
+      val idf = Eraser.run(df, attributes(1), percent._1).withColumn("lineId", monotonically_increasing_id)
       
-      val imputationResult = Avg.run(idf, attributes._2)
+      val imputationResult = Avg.run(idf, attributes(1))
       
-      imputationResult.result.foreach(println(_))
-      
-      val sImputationResult = Statistic.statisticInfo(df, attributes._2, imputationResult)
+      val sImputationResult = Statistic.statisticInfo(df, attributes(1), imputationResult)
       
       sImputationResult.result.foreach(println(_))
       
       println("totalError: " + sImputationResult.totalError)
-      println("averageError: " + sImputationResult.avgError)
+      println("avgError: " + sImputationResult.avgError)
       println("avgPercentError: " + sImputationResult.avgPercentError)
       
     }catch{

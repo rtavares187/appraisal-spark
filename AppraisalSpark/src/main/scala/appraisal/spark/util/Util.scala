@@ -14,46 +14,46 @@ object Util {
   
   def isNumeric(str:String): Boolean = str.matches("[-+]?\\d+(\\.\\d+)?")
   
-  def euclidianDist(row: Row, rowc: Row, ignoreIndex : Array[Int], ccCount: Int): Double = {
+  def euclidianDist(row: Row, rowc: Row, cColPos : Array[Int]): Double = {
     
     var dist = 0d
     
-    for(i <- 0 to (ccCount - 1)){
+    cColPos.foreach(attIndex => {
       
-      if(!ignoreIndex.contains(i)){
-        
-        dist += scala.math.pow(row.getDouble(i) - rowc.getDouble(i), 2) 
-        
-      }
+      dist += scala.math.pow(row.getDouble(attIndex) - rowc.getDouble(attIndex), 2)  
       
-    }
+    })
     
     return scala.math.sqrt(dist)
     
   }
   
-  def euclidianDist(row: Row, cidf: Broadcast[DataFrame], ignoreIndex : Array[Int]): RDD[(Long, Double, Double)] = {
+  def euclidianDist(row: Row, cidf: Broadcast[DataFrame], calcCol: Array[String]): RDD[(Long, Double, Double)] = {
     
     val ecidf = cidf.value
     
     val lIdIndex = ecidf.columns.indexOf("lineId")
     val oValIndex = ecidf.columns.indexOf("originalValue")
-    val ccCount = ecidf.columns.length
+    val cColPos = calcCol.map(ecidf.columns.indexOf(_))
     
-    ecidf.rdd.map(rowc => (rowc.getLong(lIdIndex), rowc.getDouble(oValIndex) , euclidianDist(row, rowc, ignoreIndex, ccCount)))
+    ecidf.rdd.map(rowc => (rowc.getLong(lIdIndex), rowc.getDouble(oValIndex) , euclidianDist(row, rowc, cColPos)))
     
   }
   
-  def filterNullAndNonNumeric(df: DataFrame, ignoreColumns: Option[Array[String]] = Some(Array(""))): DataFrame = {
+  def filterNullAndNonNumeric(df: DataFrame, columns: Array[String] = null): DataFrame = {
+    
+    var _columns = df.columns
+    if(columns != null)
+      _columns = columns
     
     var rdf = df
     
-    for(i <- 0 to (df.columns.length - 1)){
+    _columns.foreach(column => {
       
-      if(!ignoreColumns.contains(df.columns(i)))
-        rdf = rdf.filter(r => r.get(i) != null && Util.isNumeric(r.get(i).toString()))
-      
-    }
+      val columnIndex = rdf.columns.indexOf(column)
+      rdf = filterNullAndNonNumericByAtt(rdf, columnIndex)
+        
+    })
     
     rdf
       

@@ -7,6 +7,7 @@ import org.apache.log4j._
 import appraisal.spark.eraser.Eraser
 import appraisal.spark.executor.util.Util
 import appraisal.spark.algorithm.KMeansPlus
+import org.apache.spark.sql.functions._
 
 object KMeansExec {
   
@@ -40,7 +41,7 @@ object KMeansExec {
           
       val percent = (10, 20, 30, 40, 50)
       
-      val idf = Eraser.run(df, attributes(1), percent._1)
+      val idf = Eraser.run(df, attributes(1), percent._1).withColumn("lineId", monotonically_increasing_id)
       
       val k = 5
       val iterations = 200
