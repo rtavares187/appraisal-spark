@@ -44,11 +44,11 @@ object PcaExec {
       
       val res = Pca.run(idf, attributes(1), attributes, percent._3)
       
-      res.result.sortBy(_.index).collect().foreach(println(_))
+      res.result.sortBy(_.index).collect().foreach(Logger.getLogger("appraisal").info(_))
       
     }catch{
       
-      case ex : Throwable => println(ex)
+      case ex : Throwable => Logger.getLogger("appraisal").error(ex)
       
     }
     

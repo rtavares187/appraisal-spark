@@ -8,6 +8,7 @@ import appraisal.spark.eraser.Eraser
 import appraisal.spark.executor.util.Util
 import appraisal.spark.algorithm.KMeansPlus
 import org.apache.spark.sql.functions._
+import scala.collection.mutable.HashMap
 
 object KMeansExec {
   
@@ -43,18 +44,17 @@ object KMeansExec {
       
       val idf = Eraser.run(df, attributes(1), percent._1).withColumn("lineId", monotonically_increasing_id)
       
-      val k = 5
-      val iterations = 200
+      val params: HashMap[String, Any] = HashMap("attributes" -> attributes, "k" -> 5, "maxIter" -> 200, "kLimit" -> 100)
       
-      val clusteringResult = KMeansPlus.run(idf, attributes(1), attributes, iterations)
+      val clusteringResult = KMeansPlus.run(idf, attributes(1), params)
       
-      clusteringResult.result.foreach(println(_))
-      println("Best k: " + clusteringResult.k)
-      println("Error" + clusteringResult.wssse)
+      clusteringResult.result.foreach(Logger.getLogger("appraisal").info(_))
+      Logger.getLogger("appraisal").info("Best k: " + clusteringResult.k)
+      Logger.getLogger("appraisal").info("Error" + clusteringResult.wssse)
       
     }catch{
       
-      case ex : Throwable => println(ex)
+      case ex : Throwable => Logger.getLogger("appraisal").error(ex)
       
     }
     

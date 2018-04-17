@@ -49,15 +49,15 @@ object AvgExec {
       
       val sImputationResult = Statistic.statisticInfo(df, attributes(1), imputationResult)
       
-      sImputationResult.result.foreach(println(_))
+      sImputationResult.result.foreach(Logger.getLogger("appraisal").info(_))
       
-      println("totalError: " + sImputationResult.totalError)
-      println("avgError: " + sImputationResult.avgError)
-      println("avgPercentError: " + sImputationResult.avgPercentError)
+      Logger.getLogger("appraisal").info("totalError: " + sImputationResult.totalError)
+      Logger.getLogger("appraisal").info("avgError: " + sImputationResult.avgError)
+      Logger.getLogger("appraisal").info("avgPercentError: " + sImputationResult.avgPercentError)
       
     }catch{
       
-      case ex : Throwable => println(ex)
+      case ex : Throwable => Logger.getLogger("appraisal").error(ex)
       
     }
     

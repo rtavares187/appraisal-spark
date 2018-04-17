@@ -9,6 +9,7 @@ import appraisal.spark.eraser.Eraser
 import appraisal.spark.executor.util.Util
 import appraisal.spark.statistic._
 import org.apache.spark.sql.functions._
+import scala.collection.mutable.HashMap
 
 object KnnExec {
   
@@ -44,19 +45,21 @@ object KnnExec {
       
       val idf = Eraser.run(df, attributes(1), percent._1).withColumn("lineId", monotonically_increasing_id)
       
-      val imputationResult = Knn.run(idf, percent._1, attributes(1), attributes)
+      val params: HashMap[String, Any] = HashMap("k" -> 10, "attributes" -> attributes)
+      
+      val imputationResult = Knn.run(idf, attributes(1), params)
       
       val sImputationResult = Statistic.statisticInfo(df, attributes(1), imputationResult)
       
-      sImputationResult.result.foreach(println(_))
+      sImputationResult.result.foreach(Logger.getLogger("appraisal").info(_))
       
-      println("totalError: " + sImputationResult.totalError)
-      println("avgError: " + sImputationResult.avgError)
-      println("avgPercentError: " + sImputationResult.avgPercentError)
+      Logger.getLogger("appraisal").info("totalError: " + sImputationResult.totalError)
+      Logger.getLogger("appraisal").info("avgError: " + sImputationResult.avgError)
+      Logger.getLogger("appraisal").info("avgPercentError: " + sImputationResult.avgPercentError)
       
     }catch{
       
-      case ex : Throwable => println(ex)
+      case ex : Exception => Logger.getLogger("appraisal").error(ex)
       
     }
     

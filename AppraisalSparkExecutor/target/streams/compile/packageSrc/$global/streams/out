@@ -1,0 +1,15 @@
+[0m[[0m[0minfo[0m] [0m[0mPackaging L:\spark_workspaces\appraisalSpark\AppraisalSparkExecutor\target\scala-2.11\appraisalsparkexecutor_2.11-1.0-sources.jar ...[0m
+[0m[[0m[0mdebug[0m] [0m[0mInput file mappings:[0m
+[0m[[0m[0mdebug[0m] [0m[0m	appraisal\spark\executor\poc\AvgExec.scala[0m
+[0m[[0m[0mdebug[0m] [0m[0m	  L:\spark_workspaces\appraisalSpark\AppraisalSparkExecutor\src\main\scala\appraisal\spark\executor\poc\AvgExec.scala[0m
+[0m[[0m[0mdebug[0m] [0m[0m	appraisal\spark\executor\poc\KMeansExec.scala[0m
+[0m[[0m[0mdebug[0m] [0m[0m	  L:\spark_workspaces\appraisalSpark\AppraisalSparkExecutor\src\main\scala\appraisal\spark\executor\poc\KMeansExec.scala[0m
+[0m[[0m[0mdebug[0m] [0m[0m	appraisal\spark\executor\poc\KnnExec.scala[0m
+[0m[[0m[0mdebug[0m] [0m[0m	  L:\spark_workspaces\appraisalSpark\AppraisalSparkExecutor\src\main\scala\appraisal\spark\executor\poc\KnnExec.scala[0m
+[0m[[0m[0mdebug[0m] [0m[0m	appraisal\spark\executor\poc\PcaExec.scala[0m
+[0m[[0m[0mdebug[0m] [0m[0m	  L:\spark_workspaces\appraisalSpark\AppraisalSparkExecutor\src\main\scala\appraisal\spark\executor\poc\PcaExec.scala[0m
+[0m[[0m[0mdebug[0m] [0m[0m	appraisal\spark\executor\poc\EraserExec.scala[0m
+[0m[[0m[0mdebug[0m] [0m[0m	  L:\spark_workspaces\appraisalSpark\AppraisalSparkExecutor\src\main\scala\appraisal\spark\executor\poc\EraserExec.scala[0m
+[0m[[0m[0mdebug[0m] [0m[0m	appraisal\spark\executor\util\Util.scala[0m
+[0m[[0m[0mdebug[0m] [0m[0m	  L:\spark_workspaces\appraisalSpark\AppraisalSparkExecutor\src\main\scala\appraisal\spark\executor\util\Util.scala[0m
+[0m[[0m[0minfo[0m] [0m[0mDone packaging.[0m

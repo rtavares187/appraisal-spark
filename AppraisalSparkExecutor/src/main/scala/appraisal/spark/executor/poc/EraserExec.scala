@@ -32,7 +32,7 @@ object EraserExec {
     
     }catch{
       
-      case ex : Throwable => println(ex)
+      case ex : Throwable => Logger.getLogger("appraisal").error(ex)
       
     }
     

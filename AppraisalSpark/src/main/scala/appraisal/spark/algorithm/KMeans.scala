@@ -5,10 +5,16 @@ import org.apache.spark.sql._
 import org.apache.spark.sql.functions._
 import appraisal.spark.entities._
 import appraisal.spark.util.Util
+import appraisal.spark.interfaces.ClusteringAlgorithm
+import scala.collection.mutable.HashMap
 
-object KMeans {
+object KMeans extends ClusteringAlgorithm {
   
-  def run(idf: DataFrame, attribute: String, attributes: Array[String], k: Int, iterations: Int): Entities.ClusteringResult = {
+  def run(idf: DataFrame, attribute: String, params: HashMap[String, Any] = null): Entities.ClusteringResult = {
+    
+    val attributes: Array[String] = params("attributes").asInstanceOf[Array[String]]
+    val k: Int =  params("k").asInstanceOf[Int]
+    val maxIter: Int = params("maxIter").asInstanceOf[Int]
     
     val removeCol = idf.columns.diff(attributes)
     val remidf = idf.drop(removeCol: _*)
@@ -44,7 +50,7 @@ object KMeans {
     
     val vectors = vectorsRdd.map(_._2)
     
-    val kMeansModel = org.apache.spark.mllib.clustering.KMeans.train(vectors, k, iterations)
+    val kMeansModel = org.apache.spark.mllib.clustering.KMeans.train(vectors, k, maxIter)
     
     val wssse = kMeansModel.computeCost(vectors)
     

@@ -6,7 +6,7 @@ object Util {
   
   def loadBreastCancer(spark:SparkSession): DataFrame = {
     
-    spark.read.option("header", true).csv("..\\data\\breast-cancer-wisconsin.data.csv")
+    spark.read.option("header", true).csv("C:\\data\\breast-cancer-wisconsin.data.csv")
     
   }
   

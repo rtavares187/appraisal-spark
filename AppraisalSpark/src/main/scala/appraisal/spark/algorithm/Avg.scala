@@ -4,10 +4,12 @@ import appraisal.spark.entities._
 import org.apache.spark.sql._
 import org.apache.spark.sql.functions._
 import appraisal.spark.util.Util
+import appraisal.spark.interfaces.ImputationAlgorithm
+import scala.collection.mutable.HashMap
 
-object Avg {
+object Avg extends ImputationAlgorithm {
   
-  def run(idf: DataFrame, attribute: String): Entities.ImputationResult = {
+  def run(idf: DataFrame, attribute: String, params: HashMap[String, Any] = null): Entities.ImputationResult = {
     
     val fidf = idf
       
