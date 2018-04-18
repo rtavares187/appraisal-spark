@@ -13,38 +13,32 @@ object KMeans extends ClusteringAlgorithm {
   def run(idf: DataFrame, attribute: String, params: HashMap[String, Any] = null): Entities.ClusteringResult = {
     
     val attributes: Array[String] = params("attributes").asInstanceOf[Array[String]]
+    
     val k: Int =  params("k").asInstanceOf[Int]
     val maxIter: Int = params("maxIter").asInstanceOf[Int]
     
-    val removeCol = idf.columns.diff(attributes)
+    val removeCol = idf.columns.diff(attributes).filter(_ != "lineId")
     val remidf = idf.drop(removeCol: _*)
     
     val context = remidf.sparkSession.sparkContext
     
-    val calcCol = attributes.drop(attributes.indexOf(attribute))
+    val calcCol = attributes.filter(_ != attribute)
     
     val fidf = context.broadcast(Util.filterNullAndNonNumeric(remidf, calcCol))
     
-    val attributeIndex = fidf.value.columns.indexOf(attribute)
+    val lineIdPos = fidf.value.columns.length - 1
     
     val vectorsRdd = fidf.value.rdd.map(row => {
       
-      var fLength = fidf.value.columns.length - 2
-      var values = new Array[Double](fLength)
+      val lineId = row.getLong(lineIdPos)
+      
+      var values = new Array[Double](calcCol.length)
       var index = -1
       
-      for(i <- 0 to fLength){
+      for(i <- 0 to (calcCol.length - 1))
+        values(i) = row.getString(fidf.value.columns.indexOf(calcCol(i))).toDouble
         
-        if(i != attributeIndex){
-          
-          index += 1
-          values(index) = row.getString(i).toDouble
-          
-        }
-        
-      }
-        
-      (row.getLong(fLength + 1), Vectors.dense(values))
+      (lineId, Vectors.dense(values))
       
     }).cache()
     
