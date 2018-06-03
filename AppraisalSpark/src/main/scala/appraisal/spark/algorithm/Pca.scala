@@ -12,7 +12,7 @@ object Pca extends SelectionAlgorithm {
   
   def run(idf: DataFrame, attribute: String, attributes: Array[String], percent: Double): Entities.SelectionResult = {
     
-    val removeCol = idf.columns.diff(attributes)
+    val removeCol = idf.columns.diff(attributes.filter(_!= attribute))
     val remidf = idf.drop(removeCol: _*)
     
     val context = remidf.sparkSession.sparkContext
@@ -24,8 +24,6 @@ object Pca extends SelectionAlgorithm {
     val qtdAttributes = columns.length
     
     val pcq = ((1 - (percent / 100)) * qtdAttributes).intValue()
-    
-    val attributeIndex = columns.indexOf(attribute)
     
     val vectorsRdd = fidf.value.rdd.map(row => {
       
