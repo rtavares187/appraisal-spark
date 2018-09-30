@@ -20,7 +20,7 @@ object KMeansExec {
       
       val spark = SparkSession
         .builder
-        .appName("LinearRegressionDF")
+        .appName("KMeansExec")
         .master("local[*]")
         .config("spark.sql.warehouse.dir", "file:///C:/temp") // Necessary to work around a Windows bug in Spark 2.0.0; omit if you're not on Windows.
         .getOrCreate()
@@ -44,7 +44,7 @@ object KMeansExec {
       
       val idf = Eraser.run(df, attributes(1), percent._1).withColumn("lineId", monotonically_increasing_id)
       
-      val params: HashMap[String, Any] = HashMap("attributes" -> attributes, "k" -> 5, "maxIter" -> 200, "kLimit" -> 100)
+      val params: Map[String, Any] = Map("attributes" -> attributes, "k" -> 5, "maxIter" -> 200, "kLimit" -> 100)
       
       val clusteringResult = KMeansPlus.run(idf, attributes(1), params)
       

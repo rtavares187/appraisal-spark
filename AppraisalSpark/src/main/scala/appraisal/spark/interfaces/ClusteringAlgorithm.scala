@@ -6,6 +6,6 @@ import scala.collection.mutable.HashMap
 
 trait ClusteringAlgorithm {
   
-  def run(idf: DataFrame, attribute: String, params: HashMap[String, Any] = null): Entities.ClusteringResult
+  def run(idf: DataFrame, attribute: String, params: Map[String, Any] = null): Entities.ClusteringResult
   
 }

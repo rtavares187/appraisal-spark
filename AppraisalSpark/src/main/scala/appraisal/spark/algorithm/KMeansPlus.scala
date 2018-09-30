@@ -6,9 +6,10 @@ import scala.collection.mutable.HashMap
 
 object KMeansPlus {
   
-  def run(idf: DataFrame, attribute: String, params: HashMap[String, Any] = null): Entities.ClusteringResult = {
+  def run(idf: DataFrame, attribute: String, params: Map[String, Any] = null): Entities.ClusteringResult = {
     
     val attributes: Array[String] = params("attributes").asInstanceOf[Array[String]]
+    val k: Int = params("k").asInstanceOf[Int]
     val kLimit: Int =  params("kLimit").asInstanceOf[Int]
     val maxIter: Int = params("maxIter").asInstanceOf[Int]
     
@@ -16,13 +17,13 @@ object KMeansPlus {
     
     var lastWssse: (Double, Entities.ClusteringResult) = (0d, null)
     
-    for(k <- 2 to kLimit){
+    for(_k <- k to kLimit){
       
-      val _params = params + ("k" -> k)
+      val _params: Map[String, Any] = params + ("k" -> _k)
       
-      clusteringResult = KMeans.run(idf, attribute, params)
+      clusteringResult = KMeans.run(idf, attribute, _params)
       
-      if(k == 2 || clusteringResult.wssse.get < lastWssse._1){
+      if(_k == k || clusteringResult.wssse.get < lastWssse._1){
         
         lastWssse = (clusteringResult.wssse.get, clusteringResult)
         

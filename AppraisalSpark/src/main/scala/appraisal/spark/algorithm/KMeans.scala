@@ -10,7 +10,7 @@ import scala.collection.mutable.HashMap
 
 object KMeans extends ClusteringAlgorithm {
   
-  def run(idf: DataFrame, attribute: String, params: HashMap[String, Any] = null): Entities.ClusteringResult = {
+  def run(idf: DataFrame, attribute: String, params: Map[String, Any] = null): Entities.ClusteringResult = {
     
     val attributes: Array[String] = params("attributes").asInstanceOf[Array[String]]
     
@@ -47,8 +47,6 @@ object KMeans extends ClusteringAlgorithm {
     val kMeansModel = org.apache.spark.mllib.clustering.KMeans.train(vectors, k, maxIter)
     
     val wssse = kMeansModel.computeCost(vectors)
-    
-    val lineIdIndex = fidf.value.columns.length - 1
     
     val res = vectorsRdd.map(x => Entities.CResult(kMeansModel.predict(x._2), x._1))
     

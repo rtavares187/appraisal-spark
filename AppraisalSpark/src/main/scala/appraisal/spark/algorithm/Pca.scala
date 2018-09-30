@@ -12,7 +12,7 @@ object Pca extends SelectionAlgorithm {
   
   def run(idf: DataFrame, attribute: String, attributes: Array[String], percent: Double): Entities.SelectionResult = {
     
-    val removeCol = idf.columns.diff(attributes.filter(_!= attribute))
+    val removeCol = idf.columns.diff(attributes)
     val remidf = idf.drop(removeCol: _*)
     
     val context = remidf.sparkSession.sparkContext
@@ -42,9 +42,11 @@ object Pca extends SelectionAlgorithm {
     
     val cvla = matrix.computeCovariance()
     
+    val attributeIndex = columns.indexOf(attribute)
+    
     val sres = context.parallelize((0 to (cvla.numCols - 1)).toArray.map(l => (cvla.apply(attributeIndex, l).abs, l)))
                 .filter(_._2 != attributeIndex).sortBy(_._1, false)
-                .take(pcq).map(l => (columns(l._2), l._2, l._1))
+                .take(pcq).map(l => (columns(l._2), idf.columns.indexOf(columns(l._2)), l._1))
                 .zipWithIndex.map(l => (l._2, l._1))
     
     val rddres = context.parallelize(sres).map(l => Entities.SResult(l._1, l._2._1, l._2._2, l._2._3))
