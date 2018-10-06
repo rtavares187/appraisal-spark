@@ -10,6 +10,7 @@ import appraisal.spark.entities._
 import appraisal.spark.algorithm._
 import appraisal.spark.statistic._
 import org.apache.spark.sql.functions._
+import scala.collection.mutable.HashMap
 
 object AvgExec {
   
@@ -30,7 +31,7 @@ object AvgExec {
       
       val percent = (10, 20, 30, 40, 50)
       
-      val attributes = Array[String](
+      val features = Array[String](
           //"code_number",
           "clump_thickness",
           "uniformity_of_cell_size",
@@ -43,11 +44,14 @@ object AvgExec {
           "mitoses",
           "class")
       
-      val idf = Eraser.run(df, attributes(1), percent._1).withColumn("lineId", monotonically_increasing_id)
+      val idf = new Eraser().run(df, features(1), percent._1).withColumn("lineId", monotonically_increasing_id)
       
-      val imputationResult = Avg.run(idf, attributes(1))
+      val params: HashMap[String, Any] = HashMap(
+          "imputationFeature" -> features(1))
       
-      val sImputationResult = Statistic.statisticInfo(df, attributes(1), imputationResult)
+      val imputationResult = new Avg().run(idf, params)
+      
+      val sImputationResult = Statistic.statisticInfo(df, features(1), imputationResult)
       
       sImputationResult.result.foreach(Logger.getLogger("appraisal").info(_))
       

@@ -7,9 +7,11 @@ import appraisal.spark.util.Util
 import appraisal.spark.interfaces.ImputationAlgorithm
 import scala.collection.mutable.HashMap
 
-object Avg extends ImputationAlgorithm {
+class Avg extends ImputationAlgorithm {
   
-  def run(idf: DataFrame, attribute: String, params: HashMap[String, Any] = null): Entities.ImputationResult = {
+  def run(idf: DataFrame, params: HashMap[String, Any] = null): Entities.ImputationResult = {
+    
+    val attribute: String = params("imputationFeature").asInstanceOf[String] 
     
     val fidf = idf
       

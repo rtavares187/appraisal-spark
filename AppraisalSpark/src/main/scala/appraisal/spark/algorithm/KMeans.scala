@@ -8,12 +8,12 @@ import appraisal.spark.util.Util
 import appraisal.spark.interfaces.ClusteringAlgorithm
 import scala.collection.mutable.HashMap
 
-object KMeans extends ClusteringAlgorithm {
+class KMeans extends ClusteringAlgorithm {
   
-  def run(idf: DataFrame, attribute: String, params: Map[String, Any] = null): Entities.ClusteringResult = {
+  def run(idf: DataFrame, params: HashMap[String, Any] = null): Entities.ClusteringResult = {
     
-    val attributes: Array[String] = params("attributes").asInstanceOf[Array[String]]
-    
+    val attribute: String = params("imputationFeature").asInstanceOf[String]
+    val attributes: Array[String] = params("features").asInstanceOf[Array[String]]
     val k: Int =  params("k").asInstanceOf[Int]
     val maxIter: Int = params("maxIter").asInstanceOf[Int]
     

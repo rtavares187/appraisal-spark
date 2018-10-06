@@ -11,12 +11,13 @@ import org.apache.spark.sql.functions._
 import scala.collection.mutable.HashMap
 import appraisal.spark.interfaces.ImputationAlgorithm
 
-object Knn extends ImputationAlgorithm {
+class Knn extends ImputationAlgorithm {
   
-  def run(idf: DataFrame, attribute: String, params: HashMap[String, Any] = null): Entities.ImputationResult = {
+  def run(idf: DataFrame, params: HashMap[String, Any] = null): Entities.ImputationResult = {
     
     val k: Int = params("k").asInstanceOf[Int]
-    val attributes: Array[String] = params("attributes").asInstanceOf[Array[String]]
+    val attributes: Array[String] = params("features").asInstanceOf[Array[String]]
+    val attribute: String = params("imputationFeature").asInstanceOf[String]
     
     val removeCol = idf.columns.diff(attributes).filter(!_.equals("lineId"))
     val calcCol = attributes.filter(!_.equals(attribute))

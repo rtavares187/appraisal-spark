@@ -7,10 +7,15 @@ import org.apache.spark.sql._
 import org.apache.spark.sql.functions._
 import appraisal.spark.entities._
 import appraisal.spark.util.Util
+import scala.collection.mutable.HashMap
 
-object Pca extends SelectionAlgorithm {
+class Pca extends SelectionAlgorithm {
   
-  def run(idf: DataFrame, attribute: String, attributes: Array[String], percent: Double): Entities.SelectionResult = {
+  def run(idf: DataFrame, params: HashMap[String, Any] = null): Entities.SelectionResult = {
+    
+    val attributes: Array[String] = params("features").asInstanceOf[Array[String]] 
+    val attribute: String = params("imputationFeature").asInstanceOf[String] 
+    val percentReduction: Double = params("percentReduction").asInstanceOf[Double] 
     
     val removeCol = idf.columns.diff(attributes)
     val remidf = idf.drop(removeCol: _*)
@@ -23,7 +28,7 @@ object Pca extends SelectionAlgorithm {
     
     val qtdAttributes = columns.length
     
-    val pcq = ((1 - (percent / 100)) * qtdAttributes).intValue()
+    val pcq = ((1 - (percentReduction / 100)) * qtdAttributes).intValue()
     
     val vectorsRdd = fidf.value.rdd.map(row => {
       

@@ -4,7 +4,7 @@ import org.apache.spark.sql._
 import org.apache.spark.sql.types.DoubleType
 import org.apache.spark.sql.functions._
 
-object Eraser {
+class Eraser {
   
   def run(odf: DataFrame, attribute: String, percent: Double): DataFrame = {
    

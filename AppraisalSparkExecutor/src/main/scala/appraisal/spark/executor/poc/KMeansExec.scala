@@ -27,7 +27,7 @@ object KMeansExec {
       
       var df = Util.loadBreastCancer(spark)
       
-      val attributes = Array[String](
+      val features = Array[String](
           //"code_number",
           "clump_thickness",
           "uniformity_of_cell_size",
@@ -42,11 +42,16 @@ object KMeansExec {
           
       val percent = (10, 20, 30, 40, 50)
       
-      val idf = Eraser.run(df, attributes(1), percent._1).withColumn("lineId", monotonically_increasing_id)
+      val idf = new Eraser().run(df, features(1), percent._1).withColumn("lineId", monotonically_increasing_id)
       
-      val params: Map[String, Any] = Map("attributes" -> attributes, "k" -> 5, "maxIter" -> 200, "kLimit" -> 100)
+      val params: HashMap[String, Any] = HashMap(
+          "features" -> features,
+          "imputationFeature" -> features(1),
+          "k" -> 5, 
+          "maxIter" -> 200, 
+          "kLimit" -> 100)
       
-      val clusteringResult = KMeansPlus.run(idf, attributes(1), params)
+      val clusteringResult = new KMeansPlus().run(idf, params)
       
       clusteringResult.result.foreach(Logger.getLogger("appraisal").info(_))
       Logger.getLogger("appraisal").info("Best k: " + clusteringResult.k)

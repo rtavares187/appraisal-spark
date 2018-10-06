@@ -4,8 +4,8 @@ import org.apache.spark.sql._
 import appraisal.spark.entities._
 import scala.collection.mutable.HashMap
 
-trait ClusteringAlgorithm {
+trait ClusteringAlgorithm extends AppraisalAlgorithm {
   
-  def run(idf: DataFrame, attribute: String, params: Map[String, Any] = null): Entities.ClusteringResult
+  def run(idf: DataFrame, params: HashMap[String, Any] = null): Entities.ClusteringResult
   
 }

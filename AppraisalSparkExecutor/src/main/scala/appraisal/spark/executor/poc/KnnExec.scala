@@ -30,7 +30,7 @@ object KnnExec {
       
       val percent = (10, 20, 30, 40, 50)
       
-      val attributes = Array[String](
+      val features = Array[String](
           //"code_number",
           "clump_thickness",
           "uniformity_of_cell_size",
@@ -43,13 +43,16 @@ object KnnExec {
           "mitoses",
           "class")
       
-      val idf = Eraser.run(df, attributes(1), percent._1).withColumn("lineId", monotonically_increasing_id)
+      val idf = new Eraser().run(df, features(1), percent._1).withColumn("lineId", monotonically_increasing_id)
       
-      val params: HashMap[String, Any] = HashMap("k" -> 10, "attributes" -> attributes)
+      val params: HashMap[String, Any] = HashMap(
+          "k" -> 10, 
+          "features" -> features, 
+          "imputationFeature" -> features(1))
       
-      val imputationResult = Knn.run(idf, attributes(1), params)
+      val imputationResult = new Knn().run(idf, params)
       
-      val sImputationResult = Statistic.statisticInfo(df, attributes(1), imputationResult)
+      val sImputationResult = Statistic.statisticInfo(df, features(1), imputationResult)
       
       sImputationResult.result.foreach(Logger.getLogger("appraisal").info(_))
       

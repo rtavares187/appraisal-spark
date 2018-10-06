@@ -7,6 +7,7 @@ import org.apache.log4j._
 import appraisal.spark.executor.util.Util
 import appraisal.spark.algorithm.Pca
 import appraisal.spark.eraser.Eraser
+import scala.collection.mutable.HashMap
 
 object PcaExec {
   
@@ -25,7 +26,7 @@ object PcaExec {
       
       var df = Util.loadBreastCancer(spark)
       
-      val attributes = Array[String](
+      val features = Array[String](
           //"code_number",
           "clump_thickness",
           "uniformity_of_cell_size",
@@ -38,11 +39,16 @@ object PcaExec {
           "mitoses",
           "class")
           
-      val percent = (10d, 20d, 30d, 40d, 50d)
+      val percentReduction = (10d, 20d, 30d, 40d, 50d)
       
-      val idf = Eraser.run(df, attributes(1), percent._1)
+      val idf = new Eraser().run(df, features(1), percentReduction._1)
       
-      val res = Pca.run(idf, attributes(1), attributes, percent._3)
+      val params: HashMap[String, Any] = HashMap(
+          "features" -> features, 
+          "imputationFeature" -> features(1),
+          "percentReduction" -> percentReduction._3)
+      
+      val res = new Pca().run(idf, params)
       
       res.result.sortBy(_.index).collect().foreach(Logger.getLogger("appraisal").info(_))
       

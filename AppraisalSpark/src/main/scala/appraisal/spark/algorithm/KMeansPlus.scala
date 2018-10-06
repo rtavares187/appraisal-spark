@@ -3,12 +3,12 @@ package appraisal.spark.algorithm
 import org.apache.spark.sql._
 import appraisal.spark.entities._
 import scala.collection.mutable.HashMap
+import appraisal.spark.interfaces.ClusteringAlgorithm
 
-object KMeansPlus {
+class KMeansPlus extends ClusteringAlgorithm {
   
-  def run(idf: DataFrame, attribute: String, params: Map[String, Any] = null): Entities.ClusteringResult = {
+  def run(idf: DataFrame, params: HashMap[String, Any] = null): Entities.ClusteringResult = {
     
-    val attributes: Array[String] = params("attributes").asInstanceOf[Array[String]]
     val k: Int = params("k").asInstanceOf[Int]
     val kLimit: Int =  params("kLimit").asInstanceOf[Int]
     val maxIter: Int = params("maxIter").asInstanceOf[Int]
@@ -19,9 +19,10 @@ object KMeansPlus {
     
     for(_k <- k to kLimit){
       
-      val _params: Map[String, Any] = params + ("k" -> _k)
+      val _params: HashMap[String, Any] = params
+      _params.update("k", _k)
       
-      clusteringResult = KMeans.run(idf, attribute, _params)
+      clusteringResult = new KMeans().run(idf, params)
       
       if(_k == k || clusteringResult.wssse.get < lastWssse._1){
         

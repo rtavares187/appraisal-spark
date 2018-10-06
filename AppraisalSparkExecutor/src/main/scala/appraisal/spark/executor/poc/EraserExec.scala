@@ -26,9 +26,9 @@ object EraserExec {
       
       val percent = (10, 20, 30, 40, 50)
       
-      val attributes = ("code_number","clump_thickness","uniformity_of_cell_size","uniformity_of_cell_shape","marginal_adhesion","single_epithelial_cell_size","bare_nuclei","bland_chromatin","normal_nucleoli","mitoses","class")
+      val features = ("code_number","clump_thickness","uniformity_of_cell_size","uniformity_of_cell_shape","marginal_adhesion","single_epithelial_cell_size","bare_nuclei","bland_chromatin","normal_nucleoli","mitoses","class")
       
-      Eraser.run(df, attributes._1, percent._1)
+      new Eraser().run(df, features._1, percent._1)
     
     }catch{
       
