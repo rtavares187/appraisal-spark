@@ -3,12 +3,13 @@ package appraisal.spark.eraser
 import org.apache.spark.sql._
 import org.apache.spark.sql.types.DoubleType
 import org.apache.spark.sql.functions._
+import org.apache.spark.broadcast._
 
-class Eraser {
+class Eraser extends Serializable {
   
-  def run(odf: DataFrame, attribute: String, percent: Double): DataFrame = {
+  def run(odf: Broadcast[DataFrame], attribute: String, percent: Double): DataFrame = {
    
-   var nodf = odf
+   var nodf = odf.value
    nodf = nodf.withColumn("lineId", monotonically_increasing_id)
    
    val qtd = ((nodf.count() * percent) / 100).toInt

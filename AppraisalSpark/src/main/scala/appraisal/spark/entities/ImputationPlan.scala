@@ -6,74 +6,125 @@ import appraisal.spark.strategies._
 import org.apache.spark.sql.{Row, SparkSession}
 import org.apache.spark.sql.types.{DoubleType, StringType, StructField, StructType}
 import org.apache.spark.sql.types.{LongType, IntegerType}
+import appraisal.spark.util.Util
+import appraisal.spark.statistic.Statistic
+import org.apache.log4j.Logger
+import org.apache.spark.broadcast._
 
-class ImputationPlan {
+class ImputationPlan extends Serializable {
   
-  val strategies = List.empty[AppraisalStrategy]
+  val log = Logger.getLogger(getClass.getName)
+  
+  var strategies = List.empty[AppraisalStrategy]
+  var planName = "";
   
   def addStrategy(strategy :AppraisalStrategy) = {
     
-    strategies :+ strategy
+    strategies = strategies :+ strategy
+    
+    if(!"".equals(planName)){
+      
+      planName += "->"
+    
+    }
+    
+    planName += strategy.strategyName + "[" + strategy.algName() + "]"
     
   }
   
-  def run(idf: DataFrame) :Entities.ImputationResult = {
+  def run(idf: Broadcast[DataFrame], odf: Broadcast[DataFrame]) :Entities.ImputationResult = {
     
-    var edf = idf
-    var features = edf.columns
+    log.error("-------------------------------------")
+    log.error("Running imputation plan: " + planName)
     
-    for (strategy <- strategies){
-      
-      if (strategy.isInstanceOf[SelectionStrategy]) {
-        
-        val selectionResult = strategy.asInstanceOf[SelectionStrategy].run(edf);
-        val useColumns = selectionResult.result.map(_.attribute).collect()
-        
-        edf = edf.drop(features.diff(useColumns) :_*)
-        features = edf.columns
-        
-      }
+    var firs :Entities.ImputationResult = null;
+    
+    try{
+    
+      var edf = idf
+      var features = edf.value.columns
       
       var imputationBatch :org.apache.spark.rdd.RDD[DataFrame] = null
       
-      if (strategy.isInstanceOf[ClusteringStrategy]) {
+      for (strategy <- strategies){
         
-        val cs = strategy.asInstanceOf[ClusteringStrategy]
-        cs.params.update("features", features)
-        val cr = cs.run(edf)
-        
-        val schema = new StructType()
-        .add(StructField("cluster", IntegerType, true))
-        .add(StructField("lineidcluster", LongType, true))
-        
-        val lineIdPos = edf.columns.indexOf("lineId")
-        val context = edf.sparkSession.sparkContext
-        val bedf = context.broadcast(edf)
-        
-        var cdf = edf.sparkSession.createDataFrame(cr.result.map(x => Row(x.cluster, x.lineId)), schema)
-        var ccdf = cdf.rdd.map(r => (r.getInt(0), bedf.value.filter(l => l.getLong(lineIdPos) == r.getLong(1)).first()))
-        
-        imputationBatch = cdf.rdd.map(_.getInt(0)).distinct().map(x => ccdf.filter(r => r._1 == x)
-            .map(_._2)).map(z => cdf.sparkSession.createDataFrame(z, bedf.value.schema))
-        
-      }
-      
-      if(imputationBatch == null) imputationBatch = edf.sparkSession.sparkContext.parallelize(Seq(edf))
-      
-      if (strategy.isInstanceOf[ImputationStrategy]) {
+        if (strategy.isInstanceOf[SelectionStrategy]) {
           
-         val is = strategy.asInstanceOf[ImputationStrategy]
-         is.params.update("features", features)
-         
-         filtrar dfs que possuam nulo na coluna imputada 
-         
-         val irs = imputationBatch.map(x => is.run(x))
+          val ss = strategy.asInstanceOf[SelectionStrategy]
+          
+          log.error("Running " + strategy.strategyName + "[" + strategy.algName() + "] | params: " + ss.parameters)
+          
+          val sr = ss.run(odf);
+          
+          log.error("SelectionResult: " + sr.toString())
+          
+          val useColumns = sr.result.map(_.attribute).collect()
+          
+          edf = edf.value.sparkSession.sparkContext.broadcast(edf.value.drop(features.diff(useColumns).filter(_ != "lineId") :_*))
+          features = edf.value.columns.filter(_ != "lineId")
+          
+        }
+        
+        if (strategy.isInstanceOf[ClusteringStrategy]) {
+          
+          val cs = strategy.asInstanceOf[ClusteringStrategy]
+          cs.params.update("features", features)
+          
+          log.error("Running " + strategy.strategyName + "[" + strategy.algName() + "] | params: " + cs.parameters)
+          
+          val cr = cs.run(edf)
+          
+          log.error("ClusteringResult: " + cr.toString())
+          
+          val schema = new StructType()
+          .add(StructField("cluster", IntegerType, true))
+          .add(StructField("lineidcluster", LongType, true))
+          
+          val lineIdPos = edf.value.columns.indexOf("lineId")
+          
+          var cdf = edf.value.sparkSession.createDataFrame(cr.result.map(x => Row(x.cluster, x.lineId)), schema)
+          var ccdf = cdf.rdd.map(r => (r.getInt(0), edf.value.filter(l => l.getLong(lineIdPos) == r.getLong(1)).first()))
+          
+          // refazer em sparksql
+          
+          imputationBatch = cdf.rdd.map(_.getInt(0)).distinct().map(x => ccdf.filter(r => r._1 == x)
+              .map(_._2)).map(z => cdf.sparkSession.createDataFrame(z, edf.value.schema))
+          
+        }
+        
+        if (strategy.isInstanceOf[ImputationStrategy]) {
+          
+           if(imputationBatch == null) imputationBatch = edf.value.sparkSession.sparkContext.parallelize(Seq(edf.value))
+            
+           val is = strategy.asInstanceOf[ImputationStrategy]
+           is.params.update("features", features)
+           
+           imputationBatch = imputationBatch.filter(df => Util.hasNullatColumn(df, is.params("imputationFeature").asInstanceOf[String])) 
+           
+           log.error("Running " + strategy.strategyName + "[" + strategy.algName() + "] | params: " + is.parameters)
+           
+           val irs = imputationBatch.map(x => is.run(edf.value.sparkSession.sparkContext.broadcast(x))).map(x => Statistic.statisticInfo(odf, is.params("imputationFeature").asInstanceOf[String], x))
+           
+           firs = is.combineResult(irs)
+           
+           log.error("ImputationResult: " + firs.toString())
+           log.error("totalError: " + firs.totalError)
+           log.error("avgError: " + firs.avgError)
+           log.error("avgPercentError: " + firs.avgPercentError)
+           
+        }
         
       }
+      
+      log.error("-------------------------------------")
+      
+    }catch{
+      
+      case ex : Exception => log.error("Error executing imputation plan: " + planName, ex)
       
     }
     
-    null
+    return firs
     
   }
   

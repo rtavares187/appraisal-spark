@@ -8,17 +8,18 @@ import org.apache.spark.sql.functions._
 import appraisal.spark.entities._
 import appraisal.spark.util.Util
 import scala.collection.mutable.HashMap
+import org.apache.spark.broadcast._
 
 class Pca extends SelectionAlgorithm {
   
-  def run(idf: DataFrame, params: HashMap[String, Any] = null): Entities.SelectionResult = {
+  def run(idf: Broadcast[DataFrame], params: HashMap[String, Any] = null): Entities.SelectionResult = {
     
     val attributes: Array[String] = params("features").asInstanceOf[Array[String]] 
     val attribute: String = params("imputationFeature").asInstanceOf[String] 
     val percentReduction: Double = params("percentReduction").asInstanceOf[Double] 
     
-    val removeCol = idf.columns.diff(attributes)
-    val remidf = idf.drop(removeCol: _*)
+    val removeCol = idf.value.columns.diff(attributes)
+    val remidf = idf.value.drop(removeCol: _*)
     
     val context = remidf.sparkSession.sparkContext
     
@@ -51,12 +52,14 @@ class Pca extends SelectionAlgorithm {
     
     val sres = context.parallelize((0 to (cvla.numCols - 1)).toArray.map(l => (cvla.apply(attributeIndex, l).abs, l)))
                 .filter(_._2 != attributeIndex).sortBy(_._1, false)
-                .take(pcq).map(l => (columns(l._2), idf.columns.indexOf(columns(l._2)), l._1))
+                .take(pcq).map(l => (columns(l._2), idf.value.columns.indexOf(columns(l._2)), l._1))
                 .zipWithIndex.map(l => (l._2, l._1))
     
     val rddres = context.parallelize(sres).map(l => Entities.SResult(l._1, l._2._1, l._2._2, l._2._3))
     Entities.SelectionResult(rddres)
     
   }
+  
+  def name(): String = {"Pca"}
   
 }

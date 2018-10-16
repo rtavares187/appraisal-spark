@@ -65,4 +65,12 @@ object Util {
   
   }
   
+  def hasNullatColumn(df: DataFrame, feature: String): Boolean = {
+    
+    val featIndex = df.columns.indexOf(feature)
+    
+    df.filter(r => r.getString(featIndex) == null || "".equals(r.getString(featIndex))).count() > 0
+    
+  }
+  
 }

@@ -7,18 +7,19 @@ import appraisal.spark.entities._
 import appraisal.spark.util.Util
 import appraisal.spark.interfaces.ClusteringAlgorithm
 import scala.collection.mutable.HashMap
+import org.apache.spark.broadcast._
 
 class KMeans extends ClusteringAlgorithm {
   
-  def run(idf: DataFrame, params: HashMap[String, Any] = null): Entities.ClusteringResult = {
+  def run(idf: Broadcast[DataFrame], params: HashMap[String, Any] = null): Entities.ClusteringResult = {
     
     val attribute: String = params("imputationFeature").asInstanceOf[String]
     val attributes: Array[String] = params("features").asInstanceOf[Array[String]]
     val k: Int =  params("k").asInstanceOf[Int]
     val maxIter: Int = params("maxIter").asInstanceOf[Int]
     
-    val removeCol = idf.columns.diff(attributes).filter(_ != "lineId")
-    val remidf = idf.drop(removeCol: _*)
+    val removeCol = idf.value.columns.diff(attributes).filter(_ != "lineId")
+    val remidf = idf.value.drop(removeCol: _*)
     
     val context = remidf.sparkSession.sparkContext
     
@@ -26,7 +27,7 @@ class KMeans extends ClusteringAlgorithm {
     
     val fidf = context.broadcast(Util.filterNullAndNonNumeric(remidf, calcCol))
     
-    val lineIdPos = fidf.value.columns.length - 1
+    val lineIdPos = fidf.value.columns.indexOf("lineId")
     
     val vectorsRdd = fidf.value.rdd.map(row => {
       
@@ -53,5 +54,7 @@ class KMeans extends ClusteringAlgorithm {
     Entities.ClusteringResult(res, Some(k), Some(wssse))
     
   }
+  
+  def name(): String = {"KMeans"}
   
 }

@@ -7,12 +7,11 @@ import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types._
 import appraisal.spark.util.Util
 import java.text.DecimalFormat
+import org.apache.spark.broadcast._
 
 object Statistic {
   
-  def statisticInfo(ods :DataFrame, attribute: String, impres :Entities.ImputationResult) :Entities.ImputationResult = {
-    
-    val lods = ods.withColumn("lineId", monotonically_increasing_id)
+  def statisticInfo(lods :Broadcast[DataFrame], attribute: String, impres :Entities.ImputationResult) :Entities.ImputationResult = {
     
     val impds = impres.result.map(r => Row(r.lineId, r.originalValue, r.imputationValue))
     
@@ -20,10 +19,10 @@ object Statistic {
                                 StructField("originalValue", DoubleType, nullable = true),
                                 StructField("imputationValue", DoubleType, nullable = true)))
                                 
-    val impdf = ods.sqlContext.createDataFrame(impds, schema)
+    val impdf = lods.value.sqlContext.createDataFrame(impds, schema)
     
     impdf.createOrReplaceTempView("result")
-    lods.createOrReplaceTempView("original")
+    lods.value.createOrReplaceTempView("original")
     
     val result = impdf.sqlContext.sql("select r.lineid, o." + attribute + " as originalValue, r.imputationValue " + 
                                       "from result r inner join original o on r.lineid = o.lineid order by r.lineid")

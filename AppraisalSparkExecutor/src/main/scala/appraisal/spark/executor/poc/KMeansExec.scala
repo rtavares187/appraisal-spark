@@ -25,7 +25,7 @@ object KMeansExec {
         .config("spark.sql.warehouse.dir", "file:///C:/temp") // Necessary to work around a Windows bug in Spark 2.0.0; omit if you're not on Windows.
         .getOrCreate()
       
-      var df = Util.loadBreastCancer(spark)
+      var df = spark.sparkContext.broadcast(Util.loadBreastCancer(spark))
       
       val features = Array[String](
           //"code_number",
@@ -42,7 +42,7 @@ object KMeansExec {
           
       val percent = (10, 20, 30, 40, 50)
       
-      val idf = new Eraser().run(df, features(1), percent._1).withColumn("lineId", monotonically_increasing_id)
+      val idf = spark.sparkContext.broadcast(new Eraser().run(df, features(1), percent._1).withColumn("lineId", monotonically_increasing_id))
       
       val params: HashMap[String, Any] = HashMap(
           "features" -> features,
@@ -53,9 +53,9 @@ object KMeansExec {
       
       val clusteringResult = new KMeansPlus().run(idf, params)
       
-      clusteringResult.result.foreach(Logger.getLogger("appraisal").info(_))
-      Logger.getLogger("appraisal").info("Best k: " + clusteringResult.k)
-      Logger.getLogger("appraisal").info("Error" + clusteringResult.wssse)
+      clusteringResult.result.foreach(Logger.getLogger("appraisal").error(_))
+      Logger.getLogger("appraisal").error("Best k: " + clusteringResult.k)
+      Logger.getLogger("appraisal").error("Error" + clusteringResult.wssse)
       
     }catch{
       

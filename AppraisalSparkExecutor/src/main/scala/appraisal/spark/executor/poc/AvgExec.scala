@@ -27,7 +27,7 @@ object AvgExec {
         .config("spark.sql.warehouse.dir", "file:///C:/temp") // Necessary to work around a Windows bug in Spark 2.0.0; omit if you're not on Windows.
         .getOrCreate()
       
-      val df = Util.loadBreastCancer(spark)
+      val df = spark.sparkContext.broadcast(Util.loadBreastCancer(spark))
       
       val percent = (10, 20, 30, 40, 50)
       
@@ -44,20 +44,20 @@ object AvgExec {
           "mitoses",
           "class")
       
-      val idf = new Eraser().run(df, features(1), percent._1).withColumn("lineId", monotonically_increasing_id)
+      val idf = spark.sparkContext.broadcast(new Eraser().run(df, features(1), percent._1).withColumn("lineId", monotonically_increasing_id))
       
       val params: HashMap[String, Any] = HashMap(
           "imputationFeature" -> features(1))
       
       val imputationResult = new Avg().run(idf, params)
       
-      val sImputationResult = Statistic.statisticInfo(df, features(1), imputationResult)
+      val sImputationResult = Statistic.statisticInfo(spark.sparkContext.broadcast(df.value.withColumn("lineId", monotonically_increasing_id)), features(1), imputationResult)
       
-      sImputationResult.result.foreach(Logger.getLogger("appraisal").info(_))
+      sImputationResult.result.foreach(Logger.getLogger("appraisal").error(_))
       
-      Logger.getLogger("appraisal").info("totalError: " + sImputationResult.totalError)
-      Logger.getLogger("appraisal").info("avgError: " + sImputationResult.avgError)
-      Logger.getLogger("appraisal").info("avgPercentError: " + sImputationResult.avgPercentError)
+      Logger.getLogger("appraisal").error("totalError: " + sImputationResult.totalError)
+      Logger.getLogger("appraisal").error("avgError: " + sImputationResult.avgError)
+      Logger.getLogger("appraisal").error("avgPercentError: " + sImputationResult.avgPercentError)
       
     }catch{
       

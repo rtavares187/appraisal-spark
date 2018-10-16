@@ -10,19 +10,20 @@ import appraisal.spark.util.Util
 import org.apache.spark.sql.functions._
 import scala.collection.mutable.HashMap
 import appraisal.spark.interfaces.ImputationAlgorithm
+import org.apache.spark.broadcast._
 
 class Knn extends ImputationAlgorithm {
   
-  def run(idf: DataFrame, params: HashMap[String, Any] = null): Entities.ImputationResult = {
+  def run(idf: Broadcast[DataFrame], params: HashMap[String, Any] = null): Entities.ImputationResult = {
     
     val k: Int = params("k").asInstanceOf[Int]
     val attributes: Array[String] = params("features").asInstanceOf[Array[String]]
     val attribute: String = params("imputationFeature").asInstanceOf[String]
     
-    val removeCol = idf.columns.diff(attributes).filter(!_.equals("lineId"))
+    val removeCol = idf.value.columns.diff(attributes).filter(!_.equals("lineId"))
     val calcCol = attributes.filter(!_.equals(attribute))
     
-    var fidf = Util.filterNullAndNonNumeric(idf.drop(removeCol: _*), calcCol)
+    var fidf = Util.filterNullAndNonNumeric(idf.value.drop(removeCol: _*), calcCol)
     
     attributes.foreach(att => fidf = fidf.withColumn(att, Util.toDouble(col(att))))
     
@@ -63,5 +64,7 @@ class Knn extends ImputationAlgorithm {
     dist.take(k).map(_._2).reduce((x,y) => x + y) / k
     
   }
+  
+  def name(): String = {"Knn"}
   
 }

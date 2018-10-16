@@ -24,7 +24,7 @@ object PcaExec {
         .config("spark.sql.warehouse.dir", "file:///C:/temp") // Necessary to work around a Windows bug in Spark 2.0.0; omit if you're not on Windows.
         .getOrCreate()
       
-      var df = Util.loadBreastCancer(spark)
+      var df = spark.sparkContext.broadcast(Util.loadBreastCancer(spark))
       
       val features = Array[String](
           //"code_number",
@@ -41,7 +41,7 @@ object PcaExec {
           
       val percentReduction = (10d, 20d, 30d, 40d, 50d)
       
-      val idf = new Eraser().run(df, features(1), percentReduction._1)
+      val idf = spark.sparkContext.broadcast(new Eraser().run(df, features(1), percentReduction._1))
       
       val params: HashMap[String, Any] = HashMap(
           "features" -> features, 
@@ -50,7 +50,7 @@ object PcaExec {
       
       val res = new Pca().run(idf, params)
       
-      res.result.sortBy(_.index).collect().foreach(Logger.getLogger("appraisal").info(_))
+      res.result.sortBy(_.index).collect().foreach(Logger.getLogger("appraisal").error(_))
       
     }catch{
       

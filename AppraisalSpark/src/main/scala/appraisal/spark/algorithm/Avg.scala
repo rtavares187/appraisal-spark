@@ -6,16 +6,17 @@ import org.apache.spark.sql.functions._
 import appraisal.spark.util.Util
 import appraisal.spark.interfaces.ImputationAlgorithm
 import scala.collection.mutable.HashMap
+import org.apache.spark.broadcast._
 
 class Avg extends ImputationAlgorithm {
   
-  def run(idf: DataFrame, params: HashMap[String, Any] = null): Entities.ImputationResult = {
+  def run(idf: Broadcast[DataFrame], params: HashMap[String, Any] = null): Entities.ImputationResult = {
     
     val attribute: String = params("imputationFeature").asInstanceOf[String] 
     
-    val fidf = idf
+    val fidf = idf.value
       
-    val avgidf = Util.filterNullAndNonNumericByAtt(fidf, idf.columns.indexOf(attribute))
+    val avgidf = Util.filterNullAndNonNumericByAtt(fidf, idf.value.columns.indexOf(attribute))
     avgidf.createOrReplaceTempView("originaldb")
     
     val avgValue = avgidf.sqlContext.sql("select avg(" + attribute + ") from originaldb").head().getAs[Double](0)
@@ -35,5 +36,7 @@ class Avg extends ImputationAlgorithm {
       Entities.Result(lineId, originalValue, imputationValue)}))
     
   }
+  
+  def name(): String = {"Avg"}
   
 }

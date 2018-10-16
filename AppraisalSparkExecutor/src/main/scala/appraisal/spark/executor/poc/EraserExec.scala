@@ -22,7 +22,7 @@ object EraserExec {
         .config("spark.sql.warehouse.dir", "file:///C:/temp") // Necessary to work around a Windows bug in Spark 2.0.0; omit if you're not on Windows.
         .getOrCreate()
       
-      var df = Util.loadBreastCancer(spark)
+      var df = spark.sparkContext.broadcast(Util.loadBreastCancer(spark))
       
       val percent = (10, 20, 30, 40, 50)
       

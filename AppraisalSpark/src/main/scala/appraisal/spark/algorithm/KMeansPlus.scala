@@ -4,10 +4,11 @@ import org.apache.spark.sql._
 import appraisal.spark.entities._
 import scala.collection.mutable.HashMap
 import appraisal.spark.interfaces.ClusteringAlgorithm
+import org.apache.spark.broadcast._
 
 class KMeansPlus extends ClusteringAlgorithm {
   
-  def run(idf: DataFrame, params: HashMap[String, Any] = null): Entities.ClusteringResult = {
+  def run(idf: Broadcast[DataFrame], params: HashMap[String, Any] = null): Entities.ClusteringResult = {
     
     val k: Int = params("k").asInstanceOf[Int]
     val kLimit: Int =  params("kLimit").asInstanceOf[Int]
@@ -39,5 +40,7 @@ class KMeansPlus extends ClusteringAlgorithm {
     null
     
   }
+  
+  def name(): String = {"KMeansPlus"}
   
 }
