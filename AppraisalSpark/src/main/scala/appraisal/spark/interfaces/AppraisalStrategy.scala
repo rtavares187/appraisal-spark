@@ -6,7 +6,7 @@ import org.apache.spark.broadcast._
 
 trait AppraisalStrategy extends Serializable {
   
-  def run(idf: Broadcast[DataFrame]): StrategyResult
+  def run(idf: DataFrame): StrategyResult
   
   def algName(): String
   

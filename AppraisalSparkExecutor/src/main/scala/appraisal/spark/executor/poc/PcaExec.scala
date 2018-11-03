@@ -8,6 +8,7 @@ import appraisal.spark.executor.util.Util
 import appraisal.spark.algorithm.Pca
 import appraisal.spark.eraser.Eraser
 import scala.collection.mutable.HashMap
+import org.apache.spark.sql.functions._
 
 object PcaExec {
   
@@ -24,9 +25,7 @@ object PcaExec {
         .config("spark.sql.warehouse.dir", "file:///C:/temp") // Necessary to work around a Windows bug in Spark 2.0.0; omit if you're not on Windows.
         .getOrCreate()
       
-      var df = spark.sparkContext.broadcast(Util.loadBreastCancer(spark))
-      
-      val features = Array[String](
+        val features = Array[String](
           //"code_number",
           "clump_thickness",
           "uniformity_of_cell_size",
@@ -36,19 +35,31 @@ object PcaExec {
           "bare_nuclei",
           "bland_chromatin",
           "normal_nucleoli",
-          "mitoses",
-          "class")
+          "mitoses")
+          //"class")
           
+      val feature = features(1)
+        
+      val odf = Util.loadBreastCancer(spark).withColumn("lineId", monotonically_increasing_id)
+                                            .withColumn("originalValue", col(feature))
+      
       val percentReduction = (10d, 20d, 30d, 40d, 50d)
       
-      val idf = spark.sparkContext.broadcast(new Eraser().run(df, features(1), percentReduction._1))
+      // --- Validacao da ImputationPlan --- //
+      
+      val calcCol = features.filter(!_.equals(feature))
+      val removeCol = odf.columns.diff(features).filter(c => !"lineId".equals(c) && !feature.equals(c) && !"originalValue".equals(c))
+      var vnidf = appraisal.spark.util.Util.filterNullAndNonNumeric(odf.drop(removeCol: _*), calcCol)
+      vnidf.columns.filter(!"lineId".equals(_)).foreach(att => vnidf = vnidf.withColumn(att, appraisal.spark.util.Util.toDouble(col(att))))
+      val _vnidf = vnidf
+      
+      // ----------------------------------- //
       
       val params: HashMap[String, Any] = HashMap(
-          "features" -> features, 
-          "imputationFeature" -> features(1),
-          "percentReduction" -> percentReduction._3)
+          "imputationFeature" -> feature,
+          "percentReduction" -> percentReduction._1)
       
-      val res = new Pca().run(idf, params)
+      val res = new Pca().run(_vnidf, params)
       
       res.result.sortBy(_.index).collect().foreach(Logger.getLogger("appraisal").error(_))
       

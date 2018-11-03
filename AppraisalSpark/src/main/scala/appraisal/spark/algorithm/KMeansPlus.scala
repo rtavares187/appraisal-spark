@@ -8,7 +8,7 @@ import org.apache.spark.broadcast._
 
 class KMeansPlus extends ClusteringAlgorithm {
   
-  def run(idf: Broadcast[DataFrame], params: HashMap[String, Any] = null): Entities.ClusteringResult = {
+  def run(idf: DataFrame, params: HashMap[String, Any] = null): Entities.ClusteringResult = {
     
     val k: Int = params("k").asInstanceOf[Int]
     val kLimit: Int =  params("kLimit").asInstanceOf[Int]
@@ -18,16 +18,19 @@ class KMeansPlus extends ClusteringAlgorithm {
     
     var lastWssse: (Double, Entities.ClusteringResult) = (0d, null)
     
-    for(_k <- k to kLimit){
+    var _k = k
+    
+    //for(_k <- k to kLimit){
+    while(_k <= kLimit){
       
       val _params: HashMap[String, Any] = params
       _params.update("k", _k)
       
       clusteringResult = new KMeans().run(idf, params)
       
-      if(_k == k || clusteringResult.wssse.get < lastWssse._1){
+      if(_k == k || clusteringResult.wssse < lastWssse._1){
         
-        lastWssse = (clusteringResult.wssse.get, clusteringResult)
+        lastWssse = (clusteringResult.wssse, clusteringResult)
         
       }else{
         
@@ -35,9 +38,11 @@ class KMeansPlus extends ClusteringAlgorithm {
         
       }
       
+      _k += 1
+      
     }
     
-    null
+    return lastWssse._2
     
   }
   

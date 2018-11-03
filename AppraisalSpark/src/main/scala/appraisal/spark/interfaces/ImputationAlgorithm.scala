@@ -7,6 +7,6 @@ import org.apache.spark.broadcast._
 
 trait ImputationAlgorithm extends AppraisalAlgorithm {
   
-  def run(idf: Broadcast[DataFrame], params: HashMap[String, Any] = null): Entities.ImputationResult
+  def run(idf: DataFrame, params: HashMap[String, Any] = null): Entities.ImputationResult
   
 }

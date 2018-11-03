@@ -25,33 +25,45 @@ object KMeansExec {
         .config("spark.sql.warehouse.dir", "file:///C:/temp") // Necessary to work around a Windows bug in Spark 2.0.0; omit if you're not on Windows.
         .getOrCreate()
       
-      var df = spark.sparkContext.broadcast(Util.loadBreastCancer(spark))
-      
       val features = Array[String](
-          //"code_number",
-          "clump_thickness",
-          "uniformity_of_cell_size",
-          "uniformity_of_cell_shape",
-          "marginal_adhesion",
-          "single_epithelial_cell_size",
-          "bare_nuclei",
-          "bland_chromatin",
-          "normal_nucleoli",
-          "mitoses",
-          "class")
-          
+        //"code_number",
+        "clump_thickness",
+        "uniformity_of_cell_size",
+        "uniformity_of_cell_shape",
+        "marginal_adhesion",
+        "single_epithelial_cell_size",
+        "bare_nuclei",
+        "bland_chromatin",
+        "normal_nucleoli",
+        "mitoses")
+        //"class")
+        
+      val feature = features(1)
+        
+      val odf = Util.loadBreastCancer(spark).withColumn("lineId", monotonically_increasing_id)
+                                      .withColumn("originalValue", col(feature))
+      
       val percent = (10, 20, 30, 40, 50)
       
-      val idf = spark.sparkContext.broadcast(new Eraser().run(df, features(1), percent._1).withColumn("lineId", monotonically_increasing_id))
+      val idf = new Eraser().run(odf, feature, percent._1)
+      
+      // --- Validacao da ImputationPlan --- //
+      
+      val calcCol = features.filter(!_.equals(feature))
+      val removeCol = idf.columns.diff(features).filter(c => !"lineId".equals(c) && !feature.equals(c) && !"originalValue".equals(c))
+      var vnidf = appraisal.spark.util.Util.filterNullAndNonNumeric(idf.drop(removeCol: _*), calcCol)
+      vnidf.columns.filter(!"lineId".equals(_)).foreach(att => vnidf = vnidf.withColumn(att, appraisal.spark.util.Util.toDouble(col(att))))
+      val _vnidf = vnidf
+      
+      // ----------------------------------- //
       
       val params: HashMap[String, Any] = HashMap(
-          "features" -> features,
-          "imputationFeature" -> features(1),
-          "k" -> 5, 
+          "k" -> 2, 
           "maxIter" -> 200, 
-          "kLimit" -> 100)
+          "kLimit" -> 100,
+          "calcFeatures" -> calcCol)
       
-      val clusteringResult = new KMeansPlus().run(idf, params)
+      val clusteringResult = new KMeansPlus().run(_vnidf, params)
       
       clusteringResult.result.foreach(Logger.getLogger("appraisal").error(_))
       Logger.getLogger("appraisal").error("Best k: " + clusteringResult.k)

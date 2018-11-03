@@ -7,33 +7,37 @@ import appraisal.spark.util.Util
 import appraisal.spark.interfaces.ImputationAlgorithm
 import scala.collection.mutable.HashMap
 import org.apache.spark.broadcast._
+import appraisal.spark.statistic.Statistic
 
 class Avg extends ImputationAlgorithm {
   
-  def run(idf: Broadcast[DataFrame], params: HashMap[String, Any] = null): Entities.ImputationResult = {
+  def run(idf: DataFrame, params: HashMap[String, Any] = null): Entities.ImputationResult = {
     
     val attribute: String = params("imputationFeature").asInstanceOf[String] 
     
-    val fidf = idf.value
+    val fidf = idf
+    
+    val columns = fidf.columns
       
-    val avgidf = Util.filterNullAndNonNumericByAtt(fidf, idf.value.columns.indexOf(attribute))
+    val avgidf = Util.filterNullAndNonNumericByAtt(fidf, columns.indexOf(attribute))
     avgidf.createOrReplaceTempView("originaldb")
     
     val avgValue = avgidf.sqlContext.sql("select avg(" + attribute + ") from originaldb").head().getAs[Double](0)
     
-    val rdf = fidf.withColumn("originalValue", Util.toDouble(col(attribute))).drop(attribute)
-    .withColumn("imputationValue", when(col("originalValue").isNotNull, col("originalValue")).otherwise(avgValue))
+    val rdf = fidf.withColumn("imputationValue", when(col(attribute).isNotNull, Util.toDouble(col(attribute))).otherwise(avgValue))
     
     rdf.createOrReplaceTempView("result")
-    val result = rdf.sqlContext.sql("select lineid, originalValue, imputationValue from result where originalValue is null").rdd
+    val result = rdf.sqlContext.sql("select lineId, originalValue, imputationValue from result where " + attribute + " is null").rdd
     
-    Entities.ImputationResult(result.map(r => {
+    val impResult = Entities.ImputationResult(result.map(r => {
       
       val lineId = r.getLong(0)
-      val originalValue :Option[Double] = if(r.get(1) != null) Some(r.getDouble(1)) else null
-      val imputationValue = if(r.get(1) != null) r.getDouble(1) else r.getDouble(2)
+      val originalValue = r.getDouble(1)
+      val imputationValue = r.getDouble(2)
       
-      Entities.Result(lineId, originalValue, imputationValue)}))
+      Entities.Result(lineId, originalValue, imputationValue)}), 0, 0, 0, 0, params.toString())
+      
+    Statistic.statisticInfo(impResult)
     
   }
   

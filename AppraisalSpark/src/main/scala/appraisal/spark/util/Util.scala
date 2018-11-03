@@ -8,7 +8,7 @@ import appraisal.spark.entities._
 
 object Util {
   
-  val toDouble = udf[Option[Double], String](x => if(x != null) Some(x.toDouble) else None)
+  val toDouble = udf[Option[Double], String](x => if(x != null) Some(x.toDouble) else null)
   
   val toLong = udf[Long, String](_.toLong)
   
@@ -25,18 +25,6 @@ object Util {
     })
     
     return scala.math.sqrt(dist)
-    
-  }
-  
-  def euclidianDist(row: Row, cidf: Broadcast[DataFrame], calcCol: Array[String]): RDD[(Long, Double, Double)] = {
-    
-    val ecidf = cidf.value
-    
-    val lIdIndex = ecidf.columns.indexOf("lineId")
-    val oValIndex = ecidf.columns.indexOf("originalValue")
-    val cColPos = calcCol.map(ecidf.columns.indexOf(_))
-    
-    ecidf.rdd.map(rowc => (rowc.getLong(lIdIndex), rowc.getDouble(oValIndex) , euclidianDist(row, rowc, cColPos)))
     
   }
   
@@ -67,9 +55,24 @@ object Util {
   
   def hasNullatColumn(df: DataFrame, feature: String): Boolean = {
     
-    val featIndex = df.columns.indexOf(feature)
+    df.createOrReplaceTempView("imputationdb")
+    val nullCount = df.sqlContext.sql("select count(*) from imputationdb where " + feature + " is null").head().getAs[Long](0)
+    nullCount > 0
     
-    df.filter(r => r.getString(featIndex) == null || "".equals(r.getString(featIndex))).count() > 0
+  }
+  
+  def getCurrentTime() = {
+    
+    val dateFormatter = new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm:ss")
+    var submittedDateConvert = new java.util.Date()
+    dateFormatter.format(submittedDateConvert)
+    
+  }
+  
+  def getCurrentTime(date: java.util.Date) = {
+    
+    val dateFormatter = new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm:ss")
+    dateFormatter.format(date)
     
   }
   

@@ -7,10 +7,9 @@ import org.apache.spark.broadcast._
 
 class Eraser extends Serializable {
   
-  def run(odf: Broadcast[DataFrame], attribute: String, percent: Double): DataFrame = {
+  def run(odf: DataFrame, attribute: String, percent: Double): DataFrame = {
    
-   var nodf = odf.value
-   nodf = nodf.withColumn("lineId", monotonically_increasing_id)
+   var nodf = odf
    
    val qtd = ((nodf.count() * percent) / 100).toInt
    
@@ -24,7 +23,7 @@ class Eraser extends Serializable {
    ncoldf.createOrReplaceTempView("ncoldf")
    
    var rdf = niddf.sqlContext.sql("select o.*, n.ncolumn from originaldb o, ncoldf n where o.lineId == n.lineId")
-   rdf = rdf.withColumn(attribute, rdf("ncolumn")).drop("ncolumn").drop("lineId")
+   rdf = rdf.withColumn(attribute, rdf("ncolumn")).drop("ncolumn")
    
    return rdf
     

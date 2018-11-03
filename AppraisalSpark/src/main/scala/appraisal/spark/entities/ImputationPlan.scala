@@ -10,13 +10,13 @@ import appraisal.spark.util.Util
 import appraisal.spark.statistic.Statistic
 import org.apache.log4j.Logger
 import org.apache.spark.broadcast._
+import org.apache.spark.sql.functions._
 
-class ImputationPlan extends Serializable {
-  
-  val log = Logger.getLogger(getClass.getName)
+class ImputationPlan(idf: DataFrame, odf: DataFrame, missingRate: Double, imputationFeature: String, features: Array[String]) extends Serializable {
   
   var strategies = List.empty[AppraisalStrategy]
   var planName = "";
+  var calcCol: Array[String] = null
   
   def addStrategy(strategy :AppraisalStrategy) = {
     
@@ -32,97 +32,168 @@ class ImputationPlan extends Serializable {
     
   }
   
-  def run(idf: Broadcast[DataFrame], odf: Broadcast[DataFrame]) :Entities.ImputationResult = {
+  def run() :Entities.ImputationResult = {
     
-    log.error("-------------------------------------")
-    log.error("Running imputation plan: " + planName)
+    val planStartTime = new java.util.Date()
+    
+    var logStack = List.empty[String]
+    
+    logStack = logStack :+ "-------------------------------------"
+    logStack = logStack :+ "Running imputation plan: " + planName
+    logStack = logStack :+ "Missing rate at " + missingRate + "% in feature " + imputationFeature
     
     var firs :Entities.ImputationResult = null;
     
+    var _idf = idf
+    var _odf = odf
+    var _features = features
+    
+    val context = _idf.sparkSession.sparkContext
+    
+    _odf = appraisal.spark.util.Util.filterNullAndNonNumeric(_odf)
+    _odf = _odf.drop(_odf.columns.diff(_features).filter(c => !"lineId".equals(c) && !imputationFeature.equals(c) && !"originalValue".equals(c)): _*)
+    _odf.columns.filter(!"lineId".equals(_)).foreach(att => _odf = _odf.withColumn(att, appraisal.spark.util.Util.toDouble(col(att))))
+    
+    calcCol = _features.filter(!_.equals(imputationFeature))
+    val removeCol = _idf.columns.diff(_features).filter(c => !"lineId".equals(c) && !imputationFeature.equals(c) && !"originalValue".equals(c))
+    var vnidf = appraisal.spark.util.Util.filterNullAndNonNumeric(_idf.drop(removeCol: _*), calcCol)
+    vnidf.columns.filter(!"lineId".equals(_)).foreach(att => vnidf = vnidf.withColumn(att, appraisal.spark.util.Util.toDouble(col(att))))
+    var _vnidf = vnidf
+    
     try{
     
-      var edf = idf
-      var features = edf.value.columns
+      var imputationBatch : Seq[DataFrame] = Seq.empty[DataFrame]
       
-      var imputationBatch :org.apache.spark.rdd.RDD[DataFrame] = null
+      //for (strategy <- strategies){
       
-      for (strategy <- strategies){
+      var count = 0
+      val strategycount = strategies.size
+      
+      while(count < strategycount){
+        
+        val strategy = strategies(count)
         
         if (strategy.isInstanceOf[SelectionStrategy]) {
           
           val ss = strategy.asInstanceOf[SelectionStrategy]
           
-          log.error("Running " + strategy.strategyName + "[" + strategy.algName() + "] | params: " + ss.parameters)
+          if(!ss.params.contains("imputationFeature"))
+            ss.params.put("imputationFeature", imputationFeature)
+          else
+            ss.params.update("imputationFeature", imputationFeature)
           
-          val sr = ss.run(odf);
+          logStack = logStack :+ "Running " + strategy.strategyName + "[" + strategy.algName() + "] | params: " + ss.parameters
           
-          log.error("SelectionResult: " + sr.toString())
+          val sr = ss.run(_odf)
+          
+          logStack = logStack :+ "SelectionResult: " + sr.toString()
           
           val useColumns = sr.result.map(_.attribute).collect()
+          calcCol = useColumns.filter(!_.equals(imputationFeature))
+          _features = (useColumns :+ "lineId" :+ "originalValue" + imputationFeature).distinct
           
-          edf = edf.value.sparkSession.sparkContext.broadcast(edf.value.drop(features.diff(useColumns).filter(_ != "lineId") :_*))
-          features = edf.value.columns.filter(_ != "lineId")
+          val removecolumns = _features.diff(_vnidf.columns)
+          _vnidf = _vnidf.drop(removecolumns :_*)
           
         }
         
         if (strategy.isInstanceOf[ClusteringStrategy]) {
           
           val cs = strategy.asInstanceOf[ClusteringStrategy]
-          cs.params.update("features", features)
           
-          log.error("Running " + strategy.strategyName + "[" + strategy.algName() + "] | params: " + cs.parameters)
+          if(!cs.params.contains("calcFeatures"))
+            cs.params.put("calcFeatures", calcCol)
+          else
+            cs.params.update("calcFeatures", calcCol)
           
-          val cr = cs.run(edf)
+          logStack = logStack :+ "Running " + strategy.strategyName + "[" + strategy.algName() + "] | params: " + cs.parameters
           
-          log.error("ClusteringResult: " + cr.toString())
+          val cr = cs.run(_vnidf)
+          
+          logStack = logStack :+ "ClusteringResult: " + cr.toString()
+          logStack = logStack :+ "best k: " + cr.k
           
           val schema = new StructType()
           .add(StructField("cluster", IntegerType, true))
           .add(StructField("lineidcluster", LongType, true))
           
-          val lineIdPos = edf.value.columns.indexOf("lineId")
+          var cdf = _vnidf.sparkSession.createDataFrame(cr.result.map(x => Row(x.cluster, x.lineId)), schema)
+          val bcdf = cdf
+          val impdf = _vnidf
           
-          var cdf = edf.value.sparkSession.createDataFrame(cr.result.map(x => Row(x.cluster, x.lineId)), schema)
-          var ccdf = cdf.rdd.map(r => (r.getInt(0), edf.value.filter(l => l.getLong(lineIdPos) == r.getLong(1)).first()))
+          var clusters = cdf.rdd.map(_.getInt(0)).distinct().collect().toSeq
           
-          // refazer em sparksql
+          imputationBatch = clusters.map(cluster => {
+            
+            bcdf.createOrReplaceTempView("clusterdb")
+            impdf.createOrReplaceTempView("imputationdb")
+            
+            bcdf.sqlContext.sql("select imputationdb.* from imputationdb, clusterdb "
+                              + "where imputationdb.lineId = clusterdb.lineidcluster and clusterdb.cluster = " + cluster)
+            
+          })
           
-          imputationBatch = cdf.rdd.map(_.getInt(0)).distinct().map(x => ccdf.filter(r => r._1 == x)
-              .map(_._2)).map(z => cdf.sparkSession.createDataFrame(z, edf.value.schema))
+          logStack = logStack :+ "Batch for imputation after clustering strategy: " + imputationBatch.size
           
         }
         
         if (strategy.isInstanceOf[ImputationStrategy]) {
           
-           if(imputationBatch == null) imputationBatch = edf.value.sparkSession.sparkContext.parallelize(Seq(edf.value))
+           if(imputationBatch == null || imputationBatch.isEmpty) imputationBatch = Seq(_vnidf)
             
            val is = strategy.asInstanceOf[ImputationStrategy]
-           is.params.update("features", features)
            
+           if(!is.params.contains("calcFeatures"))
+             is.params.put("calcFeatures", calcCol)
+           else
+             is.params.update("calcFeatures", calcCol)
+             
+           if(!is.params.contains("imputationFeature"))
+             is.params.put("imputationFeature", imputationFeature)
+             
            imputationBatch = imputationBatch.filter(df => Util.hasNullatColumn(df, is.params("imputationFeature").asInstanceOf[String])) 
            
-           log.error("Running " + strategy.strategyName + "[" + strategy.algName() + "] | params: " + is.parameters)
+           logStack = logStack :+ "Batch for imputation before imputation strategy: " + imputationBatch.size
+           logStack = logStack :+ "Running " + strategy.strategyName + "[" + strategy.algName() + "] | params: " + is.parameters
            
-           val irs = imputationBatch.map(x => is.run(edf.value.sparkSession.sparkContext.broadcast(x))).map(x => Statistic.statisticInfo(odf, is.params("imputationFeature").asInstanceOf[String], x))
+           val irs = imputationBatch.map(x => is.run(x))
            
-           firs = is.combineResult(irs)
+           //firs = is.combineResult(irs)
+           firs = irs.filter(_ != null).toArray.sortBy(_.avgPercentError).head
            
-           log.error("ImputationResult: " + firs.toString())
-           log.error("totalError: " + firs.totalError)
-           log.error("avgError: " + firs.avgError)
-           log.error("avgPercentError: " + firs.avgPercentError)
+           logStack = logStack :+ "ImputationResult: " + firs.toString()
+           logStack = logStack :+ "best k: " + firs.k
+           logStack = logStack :+ "totalError: " + firs.totalError
+           logStack = logStack :+ "avgError: " + firs.avgError
+           logStack = logStack :+ "avgPercentError: " + firs.avgPercentError
            
         }
         
+        count += 1
+        
       }
       
-      log.error("-------------------------------------")
+      logStack = logStack :+ "-------------------------------------"
       
     }catch{
       
-      case ex : Exception => log.error("Error executing imputation plan: " + planName, ex)
+      case ex : Exception => Logger.getLogger(getClass.getName).error("Error executing imputation plan: " + planName, ex)
       
     }
+    
+    val planStopTime = new java.util.Date()
+    
+    val planTimeseconds   = ((planStopTime.getTime - planStartTime.getTime) / 1000)
+    
+    val planTimesMinutes = planTimeseconds / 60
+    
+    val planTimesHours = planTimesMinutes / 60
+    
+    val planTime   = ((planStopTime.getTime - planStartTime.getTime) / 3600000)
+    
+    logStack = logStack :+ "Total plan execution time: " + planTimeseconds + " seconds, " + planTimesMinutes + " minutes, " + planTimesHours + " hours."
+    
+    logStack.foreach(Logger.getLogger(getClass.getName).error(_))
     
     return firs
     

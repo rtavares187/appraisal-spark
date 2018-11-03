@@ -15,50 +15,88 @@ object KnnExec {
   
   def main(args: Array[String]) {
     
+    val wallStartTime = new java.util.Date()
+    Logger.getLogger(getClass.getName).error("Appraisal Spark - Wall start time: " + appraisal.spark.util.Util.getCurrentTime(wallStartTime))
+    
     try{
       
       Logger.getLogger("org").setLevel(Level.ERROR)
+      
+      val conf = new SparkConf()
+      //.set("spark.executor.memory", "1g")
+      .set("spark.executor.cores", "4")
+      .set("spark.network.timeout", "36000")
+      .set("spark.sql.broadcastTimeout", "36000")
+      .set("spark.executor.extraJavaOptions", "-XX:+PrintGCDetails -XX:+PrintGCTimeStamps")
+      .set("spark.sql.warehouse.dir", "file:///C:/temp") // Necessary to work around a Windows bug in Spark 2.0.0; omit if you're not on Windows.
       
       val spark = SparkSession
         .builder
         .appName("LinearRegressionDF")
         .master("local[*]")
-        .config("spark.sql.warehouse.dir", "file:///C:/temp") // Necessary to work around a Windows bug in Spark 2.0.0; omit if you're not on Windows.
+        .config(conf) // Necessary to work around a Windows bug in Spark 2.0.0; omit if you're not on Windows.
         .getOrCreate()
       
-      var df = spark.sparkContext.broadcast(Util.loadBreastCancer(spark))
+      val features = Array[String](
+        //"code_number",
+        "clump_thickness",
+        "uniformity_of_cell_size",
+        "uniformity_of_cell_shape",
+        "marginal_adhesion",
+        "single_epithelial_cell_size",
+        "bare_nuclei",
+        "bland_chromatin",
+        "normal_nucleoli",
+        "mitoses")
+        //"class")
+      
+      val feature = features(1)
+        
+      val odf = Util.loadBreastCancer(spark).withColumn("lineId", monotonically_increasing_id)
+                                      .withColumn("originalValue", col(feature))
       
       val percent = (10, 20, 30, 40, 50)
       
-      val features = Array[String](
-          //"code_number",
-          "clump_thickness",
-          "uniformity_of_cell_size",
-          "uniformity_of_cell_shape",
-          "marginal_adhesion",
-          "single_epithelial_cell_size",
-          "bare_nuclei",
-          "bland_chromatin",
-          "normal_nucleoli",
-          "mitoses",
-          "class")
+      val idf = new Eraser().run(odf, feature, percent._1)
       
-      val idf = spark.sparkContext.broadcast(new Eraser().run(df, features(1), percent._1).withColumn("lineId", monotonically_increasing_id))
+      // --- Validacao da ImputationPlan --- //
+      
+      val calcCol = features.filter(!_.equals(feature))
+      val removeCol = idf.columns.diff(features).filter(c => !"lineId".equals(c) && !feature.equals(c) && !"originalValue".equals(c))
+      var vnidf = appraisal.spark.util.Util.filterNullAndNonNumeric(idf.drop(removeCol: _*), calcCol)
+      vnidf.columns.filter(!"lineId".equals(_)).foreach(att => vnidf = vnidf.withColumn(att, appraisal.spark.util.Util.toDouble(col(att))))
+      val _vnidf = vnidf
+      
+      // ----------------------------------- //
       
       val params: HashMap[String, Any] = HashMap(
-          "k" -> 10, 
-          "features" -> features, 
-          "imputationFeature" -> features(1))
+          "k" -> 2,
+          "kLimit" -> idf.count().intValue(),
+          "imputationFeature" -> feature,
+          "calcFeatures" -> calcCol)
       
-      val imputationResult = new Knn().run(idf, params)
+      val imputationResult = new Knn().run(_vnidf, params)
       
-      val sImputationResult = Statistic.statisticInfo(spark.sparkContext.broadcast(df.value.withColumn("lineId", monotonically_increasing_id)), features(1), imputationResult)
+      imputationResult.result.foreach(Logger.getLogger("appraisal").error(_))
       
-      sImputationResult.result.foreach(Logger.getLogger("appraisal").error(_))
+      Logger.getLogger("appraisal").error("best k: " + imputationResult.k)
+      Logger.getLogger("appraisal").error("totalError: " + imputationResult.totalError)
+      Logger.getLogger("appraisal").error("avgError: " + imputationResult.avgError)
+      Logger.getLogger("appraisal").error("avgPercentError: " + imputationResult.avgPercentError)
       
-      Logger.getLogger("appraisal").error("totalError: " + sImputationResult.totalError)
-      Logger.getLogger("appraisal").error("avgError: " + sImputationResult.avgError)
-      Logger.getLogger("appraisal").error("avgPercentError: " + sImputationResult.avgPercentError)
+      val wallStopTime = new java.util.Date()
+    
+      val wallTimeseconds   = ((wallStopTime.getTime - wallStartTime.getTime) / 1000)
+      
+      val wallTimesMinutes = wallTimeseconds / 60
+      
+      val wallTimesHours = wallTimesMinutes / 60
+      
+      Logger.getLogger(getClass.getName).error("------------------ Wall stop time: " 
+                                              + appraisal.spark.util.Util.getCurrentTime(wallStartTime)
+                                              + " --- Total wall time: " + wallTimeseconds + " seconds, "
+                                              + wallTimesMinutes + " minutes, "
+                                              + wallTimesHours + " hours.")
       
     }catch{
       

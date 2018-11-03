@@ -11,57 +11,75 @@ import org.apache.spark.sql.functions._
 import scala.collection.mutable.HashMap
 import appraisal.spark.interfaces.ImputationAlgorithm
 import org.apache.spark.broadcast._
+import appraisal.spark.statistic.Statistic
 
 class Knn extends ImputationAlgorithm {
   
-  def run(idf: Broadcast[DataFrame], params: HashMap[String, Any] = null): Entities.ImputationResult = {
+  def run(idf: DataFrame, params: HashMap[String, Any] = null): Entities.ImputationResult = {
     
-    val k: Int = params("k").asInstanceOf[Int]
-    val attributes: Array[String] = params("features").asInstanceOf[Array[String]]
     val attribute: String = params("imputationFeature").asInstanceOf[String]
+    val calcCol: Array[String] = params("calcFeatures").asInstanceOf[Array[String]]
     
-    val removeCol = idf.value.columns.diff(attributes).filter(!_.equals("lineId"))
-    val calcCol = attributes.filter(!_.equals(attribute))
+    val k_start: Int = params("k").asInstanceOf[Int]
+    var kLimit = params("kLimit").asInstanceOf[Int]
     
-    var fidf = Util.filterNullAndNonNumeric(idf.value.drop(removeCol: _*), calcCol)
-    
-    attributes.foreach(att => fidf = fidf.withColumn(att, Util.toDouble(col(att))))
-    
-    fidf = fidf.withColumn("originalValue", col(attribute)).drop(attribute)
-    
-    val rdf = knn(fidf, k, calcCol).filter(_._2 == null)
-    
-    Entities.ImputationResult(rdf.map(r => Entities.Result(r._1, r._2, r._3)))
-    
-  }
-  
-  def knn(fidf: DataFrame, k: Int, calcCol: Array[String]): RDD[(Long, Option[Double], Double)] = {
-    
-    val lIdIndex = fidf.columns.indexOf("lineId")
-    val oValIndex = fidf.columns.indexOf("originalValue")
+    val fidf = idf
     
     val context = fidf.sparkSession.sparkContext
-    val cidf = context.broadcast(fidf.filter(_.get(oValIndex) != null).toDF())
     
-    val rdf :RDD[(Long, Option[Double], Double)] = fidf.rdd.map(row => {
+    val columns = fidf.columns
+    
+    val calcDf = fidf.filter(t => t.get(columns.indexOf(attribute)) != null).collect().toList
+    
+    val impDf = fidf.filter(t => t.get(columns.indexOf(attribute)) == null).collect().toList
+    
+    //fidf.unpersist()
+    
+    if(kLimit > calcDf.size) kLimit = calcDf.size
+    
+    val ks = context.parallelize((k_start to kLimit))
+    if(ks == null || ks.isEmpty())
+      null
+    
+    val rdf :List[(Long, Double, Double, Int)] = impDf.map(row => {
       
-      val lineId = row.getLong(lIdIndex)
-      val originalValue :Option[Double] = if(row.get(oValIndex) != null) Some(row.getDouble(oValIndex)) else null
-      val imputationValue = if(row.get(oValIndex) != null) row.getDouble(oValIndex) else knn(row, cidf, k, calcCol)
+      val lineId = row.getLong(columns.indexOf("lineId"))
+      val originalValue = row.getDouble(columns.indexOf("originalValue"))
+      
+      val lIdIndex = columns.indexOf("lineId")
+      val oValIndex = columns.indexOf("originalValue")
+      val cColPos = calcCol.map(columns.indexOf(_))
+      
+      val dist = calcDf.map(rowc => (rowc.getLong(lIdIndex), rowc.getDouble(oValIndex) , Util.euclidianDist(row, rowc, cColPos)))
+                      .sortBy(_._3)
+      
+      //val dist = impDf.value.sparkSession.sparkContext.broadcast(Util.euclidianDist(row, calcDf, calcCol).sortBy(_._3).collect())
+      //val dist = Util.euclidianDist(row, calcDf, calcCol).sortBy(_._3).collect()
+      
+      val impByK = ks.map(k => {
+      
+        val impValue = dist.take(k).map(_._2).reduce((x,y) => x + y) / k
+        val error = scala.math.sqrt(scala.math.pow(impValue - originalValue, 2)).doubleValue()
+        val percentualError = ((error / originalValue) * 100).doubleValue()
+        
+        (k, impValue, percentualError)
+        
+      })
+      
+      val impByKSelected = impByK.sortBy(_._3, true).first()
+      val bestK = impByKSelected._1
+      val imputationValue = impByKSelected._2
       
       (lineId, 
        originalValue, 
-       imputationValue)})
+       imputationValue,
+       bestK)})
     
-    rdf
-    
-  }
-  
-  def knn(row: Row, cidf: Broadcast[DataFrame], k: Int, calcCol: Array[String]): Double = {
-    
-    val dist = Util.euclidianDist(row, cidf, calcCol).sortBy(_._3)
-    
-    dist.take(k).map(_._2).reduce((x,y) => x + y) / k
+    val count = rdf.size.doubleValue()
+    val kavg = rdf.map(_._4).reduce((x,y) => x + y).doubleValue() / count
+       
+    Statistic.statisticInfo(Entities.ImputationResult(context.parallelize(rdf.map(r => Entities.Result(r._1, r._2, r._3))), 
+                                                                              kavg.intValue(), 0, 0, 0, params.toString()))
     
   }
   
