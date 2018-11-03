@@ -10,4 +10,10 @@ object Util {
     
   }
   
+  def loadAidsOccurenceAndDeath(spark:SparkSession): DataFrame = {
+    
+    spark.read.option("header", true).csv("C:\\data\\AIDS Occurrence and Death and Queries.csv")
+    
+  }
+  
 }

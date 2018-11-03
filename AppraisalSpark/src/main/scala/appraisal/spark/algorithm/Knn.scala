@@ -29,9 +29,9 @@ class Knn extends ImputationAlgorithm {
     
     val columns = fidf.columns
     
-    val calcDf = fidf.filter(t => t.get(columns.indexOf(attribute)) != null).collect().toList
+    val calcDf = fidf.filter(t => t.get(columns.indexOf(attribute)) != null).collect().toList.par
     
-    val impDf = fidf.filter(t => t.get(columns.indexOf(attribute)) == null).collect().toList
+    val impDf = fidf.filter(t => t.get(columns.indexOf(attribute)) == null).collect().toList.par
     
     //fidf.unpersist()
     
@@ -41,7 +41,7 @@ class Knn extends ImputationAlgorithm {
     if(ks == null || ks.isEmpty())
       null
     
-    val rdf :List[(Long, Double, Double, Int)] = impDf.map(row => {
+    val rdf = impDf.map(row => {
       
       val lineId = row.getLong(columns.indexOf("lineId"))
       val originalValue = row.getDouble(columns.indexOf("originalValue"))
@@ -50,7 +50,7 @@ class Knn extends ImputationAlgorithm {
       val oValIndex = columns.indexOf("originalValue")
       val cColPos = calcCol.map(columns.indexOf(_))
       
-      val dist = calcDf.map(rowc => (rowc.getLong(lIdIndex), rowc.getDouble(oValIndex) , Util.euclidianDist(row, rowc, cColPos)))
+      val dist = calcDf.map(rowc => (rowc.getLong(lIdIndex), rowc.getDouble(oValIndex) , Util.euclidianDist(row, rowc, cColPos))).toArray
                       .sortBy(_._3)
       
       //val dist = impDf.value.sparkSession.sparkContext.broadcast(Util.euclidianDist(row, calcDf, calcCol).sortBy(_._3).collect())
@@ -78,7 +78,7 @@ class Knn extends ImputationAlgorithm {
     val count = rdf.size.doubleValue()
     val kavg = rdf.map(_._4).reduce((x,y) => x + y).doubleValue() / count
        
-    Statistic.statisticInfo(Entities.ImputationResult(context.parallelize(rdf.map(r => Entities.Result(r._1, r._2, r._3))), 
+    Statistic.statisticInfo(Entities.ImputationResult(context.parallelize(rdf.map(r => Entities.Result(r._1, r._2, r._3)).toList), 
                                                                               kavg.intValue(), 0, 0, 0, params.toString()))
     
   }

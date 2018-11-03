@@ -12,11 +12,35 @@ import org.apache.log4j.Logger
 import org.apache.spark.broadcast._
 import org.apache.spark.sql.functions._
 
-class ImputationPlan(idf: DataFrame, odf: DataFrame, missingRate: Double, imputationFeature: String, features: Array[String]) extends Serializable {
+class ImputationPlan(idf: DataFrame, odf: DataFrame, missingRate: Double, imputationFeature: String, features: Array[String], parallel: Boolean = true) extends Serializable {
   
   var strategies = List.empty[AppraisalStrategy]
   var planName = "";
   var calcCol: Array[String] = null
+  
+  def getIdf :DataFrame = {
+    idf
+  }
+  
+  def getOdf :DataFrame = {
+    odf
+  }
+  
+  def getMissingRate :Double = {
+    missingRate
+  }
+  
+  def getImputationFeature :String = {
+    imputationFeature
+  }
+  
+  def getFeatures :Array[String] = {
+    features
+  }
+  
+  def getParallel :Boolean = {
+    parallel
+  }
   
   def addStrategy(strategy :AppraisalStrategy) = {
     
@@ -29,6 +53,12 @@ class ImputationPlan(idf: DataFrame, odf: DataFrame, missingRate: Double, imputa
     }
     
     planName += strategy.strategyName + "[" + strategy.algName() + "]"
+    
+  }
+  
+  def updateStrategies(_strategies: List[AppraisalStrategy]) = {
+    
+    _strategies.foreach(strat => addStrategy(strat))
     
   }
   
@@ -62,7 +92,8 @@ class ImputationPlan(idf: DataFrame, odf: DataFrame, missingRate: Double, imputa
     
     try{
     
-      var imputationBatch : Seq[DataFrame] = Seq.empty[DataFrame]
+      var imputationBatch = Seq.empty[DataFrame]
+      var p_imputationBatch = Seq.empty[DataFrame].par
       
       //for (strategy <- strategies){
       
@@ -121,26 +152,54 @@ class ImputationPlan(idf: DataFrame, odf: DataFrame, missingRate: Double, imputa
           val bcdf = cdf
           val impdf = _vnidf
           
-          var clusters = cdf.rdd.map(_.getInt(0)).distinct().collect().toSeq
+          if(parallel){
+            
+            var clusters = cdf.rdd.map(_.getInt(0)).distinct().collect().toSeq.par
           
-          imputationBatch = clusters.map(cluster => {
+            p_imputationBatch = clusters.map(cluster => {
+              
+              bcdf.createOrReplaceTempView("clusterdb")
+              impdf.createOrReplaceTempView("imputationdb")
+              
+              bcdf.sqlContext.sql("select imputationdb.* from imputationdb, clusterdb "
+                                + "where imputationdb.lineId = clusterdb.lineidcluster and clusterdb.cluster = " + cluster)
+              
+            })
             
-            bcdf.createOrReplaceTempView("clusterdb")
-            impdf.createOrReplaceTempView("imputationdb")
-            
-            bcdf.sqlContext.sql("select imputationdb.* from imputationdb, clusterdb "
-                              + "where imputationdb.lineId = clusterdb.lineidcluster and clusterdb.cluster = " + cluster)
-            
-          })
+            logStack = logStack :+ "Batch for imputation after clustering strategy: " + p_imputationBatch.size
           
-          logStack = logStack :+ "Batch for imputation after clustering strategy: " + imputationBatch.size
+          }else{
+            
+            var clusters = cdf.rdd.map(_.getInt(0)).distinct().collect().toSeq
+          
+            imputationBatch = clusters.map(cluster => {
+              
+              bcdf.createOrReplaceTempView("clusterdb")
+              impdf.createOrReplaceTempView("imputationdb")
+              
+              bcdf.sqlContext.sql("select imputationdb.* from imputationdb, clusterdb "
+                                + "where imputationdb.lineId = clusterdb.lineidcluster and clusterdb.cluster = " + cluster)
+              
+            })
+            
+            logStack = logStack :+ "Batch for imputation after clustering strategy: " + imputationBatch.size
+            
+          }
           
         }
         
         if (strategy.isInstanceOf[ImputationStrategy]) {
+           
+           if(parallel){
           
-           if(imputationBatch == null || imputationBatch.isEmpty) imputationBatch = Seq(_vnidf)
-            
+             if(p_imputationBatch == null || p_imputationBatch.isEmpty) p_imputationBatch = Seq(_vnidf).par
+           
+           }else{
+             
+             if(imputationBatch == null || imputationBatch.isEmpty) imputationBatch = Seq(_vnidf)
+             
+           }
+           
            val is = strategy.asInstanceOf[ImputationStrategy]
            
            if(!is.params.contains("calcFeatures"))
@@ -150,22 +209,44 @@ class ImputationPlan(idf: DataFrame, odf: DataFrame, missingRate: Double, imputa
              
            if(!is.params.contains("imputationFeature"))
              is.params.put("imputationFeature", imputationFeature)
+           
+           if(parallel){
              
-           imputationBatch = imputationBatch.filter(df => Util.hasNullatColumn(df, is.params("imputationFeature").asInstanceOf[String])) 
+             p_imputationBatch = p_imputationBatch.filter(df => Util.hasNullatColumn(df, is.params("imputationFeature").asInstanceOf[String])) 
            
-           logStack = logStack :+ "Batch for imputation before imputation strategy: " + imputationBatch.size
-           logStack = logStack :+ "Running " + strategy.strategyName + "[" + strategy.algName() + "] | params: " + is.parameters
+             logStack = logStack :+ "Batch for imputation before imputation strategy: " + p_imputationBatch.size
+             logStack = logStack :+ "Running " + strategy.strategyName + "[" + strategy.algName() + "] | params: " + is.parameters
+             
+             val irs = p_imputationBatch.map(x => is.run(x))
+             
+             //firs = is.combineResult(irs)
+             firs = irs.filter(_ != null).toArray.sortBy(_.avgPercentError).head
+             
+             logStack = logStack :+ "ImputationResult: " + firs.toString()
+             logStack = logStack :+ "best k: " + firs.k
+             logStack = logStack :+ "totalError: " + firs.totalError
+             logStack = logStack :+ "avgError: " + firs.avgError
+             logStack = logStack :+ "avgPercentError: " + firs.avgPercentError
+             
+           }else{
+             
+             imputationBatch = imputationBatch.filter(df => Util.hasNullatColumn(df, is.params("imputationFeature").asInstanceOf[String])) 
            
-           val irs = imputationBatch.map(x => is.run(x))
-           
-           //firs = is.combineResult(irs)
-           firs = irs.filter(_ != null).toArray.sortBy(_.avgPercentError).head
-           
-           logStack = logStack :+ "ImputationResult: " + firs.toString()
-           logStack = logStack :+ "best k: " + firs.k
-           logStack = logStack :+ "totalError: " + firs.totalError
-           logStack = logStack :+ "avgError: " + firs.avgError
-           logStack = logStack :+ "avgPercentError: " + firs.avgPercentError
+             logStack = logStack :+ "Batch for imputation before imputation strategy: " + imputationBatch.size
+             logStack = logStack :+ "Running " + strategy.strategyName + "[" + strategy.algName() + "] | params: " + is.parameters
+             
+             val irs = imputationBatch.map(x => is.run(x))
+             
+             //firs = is.combineResult(irs)
+             firs = irs.filter(_ != null).toArray.sortBy(_.avgPercentError).head
+             
+             logStack = logStack :+ "ImputationResult: " + firs.toString()
+             logStack = logStack :+ "best k: " + firs.k
+             logStack = logStack :+ "totalError: " + firs.totalError
+             logStack = logStack :+ "avgError: " + firs.avgError
+             logStack = logStack :+ "avgPercentError: " + firs.avgPercentError
+             
+           }
            
         }
         
