@@ -44,29 +44,21 @@ object ImputationPlanExec extends Serializable {
         //.master("spark://127.0.0.1:7077")
         .config(conf)
         .getOrCreate()
-      /*
-      val features = Array[String](
-        //"code_number",
-        "clump_thickness",
-        "uniformity_of_cell_size",
-        "uniformity_of_cell_shape",
-        "marginal_adhesion",
-        "single_epithelial_cell_size",
-        "bare_nuclei",
-        "bland_chromatin",
-        "normal_nucleoli",
-        "mitoses")
-        //"class")
-      */
-        
+      
+      val features = Util.breastcancer_features
+      //val features = Util.aidsocurrence_features
+      
+      /*  
       val features = Array[String](
         //"code_number",
         "clump_thickness",
         "uniformity_of_cell_size")  
+      */
         
       var feature = ""
         
       var odf = Util.loadBreastCancer(spark).withColumn("lineId", monotonically_increasing_id)
+      //var odf = Util.loadAidsOccurenceAndDeath(spark).withColumn("lineId", monotonically_increasing_id)
       
       Logger.getLogger(getClass.getName).error("Data count: " + odf.count())
       
@@ -75,11 +67,11 @@ object ImputationPlanExec extends Serializable {
       
       var imputationPlans = List.empty[(String, Double, Double, ImputationPlan)]
       
-      //val missingRate = Seq(10d, 20d, 30d)
-      val missingRate = Seq(10d)
+      val missingRate = Seq(10d, 20d, 30d)
+      //val missingRate = Seq(10d)
       
-      //val selectionReduction = Seq(10d, 20d, 30d)
-      val selectionReduction = Seq(10d)
+      val selectionReduction = Seq(10d, 20d, 30d)
+      //val selectionReduction = Seq(10d)
       
       features.foreach(feat => {
         

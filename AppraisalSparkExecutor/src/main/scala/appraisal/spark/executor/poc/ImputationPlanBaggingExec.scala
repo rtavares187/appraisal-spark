@@ -44,29 +44,20 @@ object ImputationPlanBaggingExec extends Serializable {
         //.master("spark://127.0.0.1:7077")
         .config(conf)
         .getOrCreate()
-      /*
-      val features = Array[String](
-        //"code_number",
-        "clump_thickness",
-        "uniformity_of_cell_size",
-        "uniformity_of_cell_shape",
-        "marginal_adhesion",
-        "single_epithelial_cell_size",
-        "bare_nuclei",
-        "bland_chromatin",
-        "normal_nucleoli",
-        "mitoses")
-        //"class")
-      */
+      
+      val features = Util.breastcancer_features
+      //val features = Util.aidsocurrence_features
         
+      /*  
       val features = Array[String](
         //"code_number",
         "clump_thickness",
         "uniformity_of_cell_size")  
-        
+      */  
       var feature = ""
         
       var odf = Util.loadBreastCancer(spark).withColumn("lineId", monotonically_increasing_id)
+      //var odf = Util.loadAidsOccurenceAndDeath(spark).withColumn("lineId", monotonically_increasing_id)
       
       Logger.getLogger(getClass.getName).error("Data count: " + odf.count())
       
@@ -75,14 +66,14 @@ object ImputationPlanBaggingExec extends Serializable {
       
       var imputationPlans = List.empty[(String, Double, Double, Int, Bagging)]
       
-      //val missingRate = Seq(10d, 20d, 30d)
-      val missingRate = Seq(10d)
+      val missingRate = Seq(10d, 20d, 30d)
+      //val missingRate = Seq(10d)
       
-      //val selectionReduction = Seq(10d, 20d, 30d)
-      val selectionReduction = Seq(10d)
+      val selectionReduction = Seq(10d, 20d, 30d)
+      //val selectionReduction = Seq(10d)
       
-      //val bT = Seq(1,2,3)
-      val bT = Seq(1)
+      val bT = Seq(1,2,3)
+      //val bT = Seq(1)
       
       features.foreach(feat => {
         
@@ -280,7 +271,7 @@ object ImputationPlanBaggingExec extends Serializable {
       val planCount = imputationPlans.size
       var qPlan = planCount
       
-      var resultList = List.empty[(String, Double, Double, Int, Double, String)]
+      var resultList = List.empty[(String, Double, Double, Int, Double)]
       
       if(parallelExecution){
         
@@ -288,7 +279,7 @@ object ImputationPlanBaggingExec extends Serializable {
         
           var execResult = plan._5.run()
           
-          resultList = resultList :+ (plan._5.planName, plan._2, plan._3, plan._4, execResult.avgPercentError, null)
+          resultList = resultList :+ (plan._5.planName, plan._2, plan._3, plan._4, execResult.avgPercentError)
           
           qPlan -= 1
           val rPlan = planCount - qPlan
@@ -304,7 +295,7 @@ object ImputationPlanBaggingExec extends Serializable {
           
           var execResult = plan._5.run()
           
-          resultList = resultList :+ (plan._5.planName, plan._2, plan._3, plan._4, execResult.avgPercentError, null)
+          resultList = resultList :+ (plan._5.planName, plan._2, plan._3, plan._4, execResult.avgPercentError)
           
           qPlan -= 1
           val rPlan = planCount - qPlan

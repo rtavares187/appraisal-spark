@@ -212,7 +212,7 @@ class ImputationPlan(idf: DataFrame, odf: DataFrame, missingRate: Double, imputa
            
            if(parallel){
              
-             p_imputationBatch = p_imputationBatch.filter(df => Util.hasNullatColumn(df, is.params("imputationFeature").asInstanceOf[String])) 
+             p_imputationBatch = p_imputationBatch.filter(df => df != null && df.count() > 0 && Util.hasNullatColumn(df, is.params("imputationFeature").asInstanceOf[String])) 
            
              logStack = logStack :+ "Batch for imputation before imputation strategy: " + p_imputationBatch.size
              logStack = logStack :+ "Running " + strategy.strategyName + "[" + strategy.algName() + "] | params: " + is.parameters
@@ -230,7 +230,7 @@ class ImputationPlan(idf: DataFrame, odf: DataFrame, missingRate: Double, imputa
              
            }else{
              
-             imputationBatch = imputationBatch.filter(df => Util.hasNullatColumn(df, is.params("imputationFeature").asInstanceOf[String])) 
+             imputationBatch = imputationBatch.filter(df => df != null && df.count() > 0 && Util.hasNullatColumn(df, is.params("imputationFeature").asInstanceOf[String])) 
            
              logStack = logStack :+ "Batch for imputation before imputation strategy: " + imputationBatch.size
              logStack = logStack :+ "Running " + strategy.strategyName + "[" + strategy.algName() + "] | params: " + is.parameters
