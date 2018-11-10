@@ -45,8 +45,8 @@ object ImputationPlanExec extends Serializable {
         .config(conf)
         .getOrCreate()
       
-      val features = Util.breastcancer_features
-      //val features = Util.aidsocurrence_features
+      //val features = Util.breastcancer_features
+      val features = Util.aidsocurrence_features
       
       /*  
       val features = Array[String](
@@ -57,8 +57,8 @@ object ImputationPlanExec extends Serializable {
         
       var feature = ""
         
-      var odf = Util.loadBreastCancer(spark).withColumn("lineId", monotonically_increasing_id)
-      //var odf = Util.loadAidsOccurenceAndDeath(spark).withColumn("lineId", monotonically_increasing_id)
+      //var odf = Util.loadBreastCancer(spark).withColumn("lineId", monotonically_increasing_id)
+      var odf = Util.loadAidsOccurenceAndDeath(spark).withColumn("lineId", monotonically_increasing_id)
       
       Logger.getLogger(getClass.getName).error("Data count: " + odf.count())
       

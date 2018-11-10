@@ -258,7 +258,12 @@ class ImputationPlan(idf: DataFrame, odf: DataFrame, missingRate: Double, imputa
       
     }catch{
       
-      case ex : Exception => Logger.getLogger(getClass.getName).error("Error executing imputation plan: " + planName, ex)
+      case ex : Exception => {
+        
+        logStack.foreach(Logger.getLogger(getClass.getName).error(_))
+        Logger.getLogger(getClass.getName).error("Error executing imputation plan: " + planName, ex)
+        
+      }
       
     }
     

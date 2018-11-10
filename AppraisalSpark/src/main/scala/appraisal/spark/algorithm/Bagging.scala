@@ -25,7 +25,7 @@ class Bagging(plan: ImputationPlan, T: Int) extends Serializable {
           val nparam: HashMap[String, Any] = new HashMap[String, Any]()
           
           val oldparam = ss.params
-          oldparam.keySet.foreach(key => nparam.put(key, oldparam.get(key)))
+          oldparam.keySet.foreach(key => nparam.put(key, oldparam.get(key).get))
           
           val nalg = ss.selectionAlgorithm.getClass.newInstance()
           
@@ -38,7 +38,7 @@ class Bagging(plan: ImputationPlan, T: Int) extends Serializable {
          val nparam: HashMap[String, Any] = new HashMap[String, Any]()
           
          val oldparam = cs.params
-         oldparam.keySet.foreach(key => nparam.put(key, oldparam.get(key)))
+         oldparam.keySet.foreach(key => nparam.put(key, oldparam.get(key).get))
           
          val nalg = cs.clusteringAlgorithm.getClass.newInstance()
           
@@ -51,7 +51,7 @@ class Bagging(plan: ImputationPlan, T: Int) extends Serializable {
          val nparam: HashMap[String, Any] = new HashMap[String, Any]()
           
          val oldparam = is.params
-         oldparam.keySet.foreach(key => nparam.put(key, oldparam.get(key)))
+         oldparam.keySet.foreach(key => nparam.put(key, oldparam.get(key).get))
           
          val nalg = is.imputationAlgorithm.getClass.newInstance()
           

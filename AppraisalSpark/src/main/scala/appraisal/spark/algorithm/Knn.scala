@@ -66,6 +66,9 @@ class Knn extends ImputationAlgorithm {
         
       })
       
+      if(impByK == null || impByK.isEmpty())
+        null
+      
       val impByKSelected = impByK.sortBy(_._3, true).first()
       val bestK = impByKSelected._1
       val imputationValue = impByKSelected._2
