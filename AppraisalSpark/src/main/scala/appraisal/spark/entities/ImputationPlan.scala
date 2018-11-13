@@ -80,13 +80,20 @@ class ImputationPlan(idf: DataFrame, odf: DataFrame, missingRate: Double, imputa
     
     val context = _idf.sparkSession.sparkContext
     
+    val remCol = _odf.columns.diff(_features).filter(c => !"lineId".equals(c) && !imputationFeature.equals(c) && !"originalValue".equals(c))
+    _odf = _odf.drop(remCol: _*)
     _odf = appraisal.spark.util.Util.filterNullAndNonNumeric(_odf)
-    _odf = _odf.drop(_odf.columns.diff(_features).filter(c => !"lineId".equals(c) && !imputationFeature.equals(c) && !"originalValue".equals(c)): _*)
-    _odf.columns.filter(!"lineId".equals(_)).foreach(att => _odf = _odf.withColumn(att, appraisal.spark.util.Util.toDouble(col(att))))
     
+    _odf.columns.filter(!"lineId".equals(_)).foreach(att => _odf = _odf.withColumn(att, appraisal.spark.util.Util.toDouble(col(att))))
+   
     calcCol = _features.filter(!_.equals(imputationFeature))
     val removeCol = _idf.columns.diff(_features).filter(c => !"lineId".equals(c) && !imputationFeature.equals(c) && !"originalValue".equals(c))
+    
     var vnidf = appraisal.spark.util.Util.filterNullAndNonNumeric(_idf.drop(removeCol: _*), calcCol)
+    
+    val impcolindex = vnidf.columns.indexOf(imputationFeature)
+    vnidf = vnidf.filter(r => Util.isNumericOrNull(r.get(impcolindex)))
+    
     vnidf.columns.filter(!"lineId".equals(_)).foreach(att => vnidf = vnidf.withColumn(att, appraisal.spark.util.Util.toDouble(col(att))))
     var _vnidf = vnidf
     

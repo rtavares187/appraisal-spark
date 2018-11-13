@@ -14,6 +14,14 @@ object Util {
   
   def isNumeric(str:String): Boolean = str.matches("[-+]?\\d+(\\.\\d+)?")
   
+  def isNumericOrNull(obj:Any): Boolean = {
+    
+    if(obj == null) return true
+    
+    obj.toString().matches("[-+]?\\d+(\\.\\d+)?")
+    
+  }
+  
   def euclidianDist(row: Row, rowc: Row, cColPos : Array[Int]): Double = {
     
     var dist = 0d

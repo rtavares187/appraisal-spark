@@ -19,9 +19,36 @@ object ImputationPlanBaggingExec extends Serializable {
   def main(args: Array[String]) {
     
     var parallelExecution = true
+    var breastCancer = false
+    var aidsOccurrence = false
     
-    if(args != null && args.length > 0 && "single".equalsIgnoreCase(args(0)))
-      parallelExecution = false
+    if(args != null && args.length > 0){
+      
+      if("single".equalsIgnoreCase(args(0))){
+        
+        parallelExecution = false
+      
+      }else if ("breastcancer".equalsIgnoreCase(args(0))){
+        
+        breastCancer = true
+          
+      }else if("aidsoccurrence".equalsIgnoreCase(args(0))){
+        
+        aidsOccurrence = true
+        
+      }
+      
+      if(args.length > 1){
+        
+        if ("breastcancer".equalsIgnoreCase(args(1)))
+          breastCancer = true
+          
+        else if("aidsoccurrence".equalsIgnoreCase(args(1)))
+          aidsOccurrence = true
+          
+      }
+      
+    }
     
     val wallStartTime = new java.util.Date()
     Logger.getLogger(getClass.getName).error("Appraisal Spark - Wall start time: " + appraisal.spark.util.Util.getCurrentTime(wallStartTime))
@@ -40,24 +67,27 @@ object ImputationPlanBaggingExec extends Serializable {
       val spark = SparkSession
         .builder
         .appName("AppraisalSpark")
-        //.master("local[*]")
+        .master("local[*]")
         //.master("spark://127.0.0.1:7077")
         .config(conf)
         .getOrCreate()
       
-      //val features = Util.breastcancer_features
-      val features = Util.aidsocurrence_features
-        
-      /*  
-      val features = Array[String](
-        //"code_number",
-        "clump_thickness",
-        "uniformity_of_cell_size")  
-      */  
+      var features: Array[String] = null
       var feature = ""
         
-      //var odf = Util.loadBreastCancer(spark).withColumn("lineId", monotonically_increasing_id)
-      var odf = Util.loadAidsOccurenceAndDeath(spark).withColumn("lineId", monotonically_increasing_id)
+      var odf: DataFrame = null
+      
+      if(breastCancer){
+        
+        odf = Util.loadBreastCancer(spark).withColumn("lineId", monotonically_increasing_id)
+        features = Util.breastcancer_features
+      
+      }else if(aidsOccurrence){
+        
+        odf = Util.loadAidsOccurenceAndDeath(spark).withColumn("lineId", monotonically_increasing_id)
+        features = Util.aidsocurrence_features
+        
+      }
       
       Logger.getLogger(getClass.getName).error("Data count: " + odf.count())
       
