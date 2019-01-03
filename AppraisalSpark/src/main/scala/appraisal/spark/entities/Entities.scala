@@ -1,6 +1,7 @@
 package appraisal.spark.entities
 
 import org.apache.spark.rdd.RDD
+import appraisal.spark.engine.ImputationPlan
 
 import appraisal.spark.interfaces.StrategyResult
 

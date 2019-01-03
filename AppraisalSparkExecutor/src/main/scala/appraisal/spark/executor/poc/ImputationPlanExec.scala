@@ -1,7 +1,7 @@
 package appraisal.spark.executor.poc
 
 import org.apache.log4j._
-import appraisal.spark.entities.ImputationPlan
+import appraisal.spark.engine._
 import org.apache.spark._
 import org.apache.spark.SparkContext._
 import org.apache.spark.sql._
@@ -291,79 +291,9 @@ object ImputationPlanExec extends Serializable {
       //val imputationPlansRdd = spark.sparkContext.parallelize(imputationPlans)
       //imputationPlansRdd.map(plan => (plan.planName, plan.run())).foreach(println(_))
       
-      val planCount = imputationPlans.size
-      var qPlan = planCount
+      var resultList = new Crowner().run(imputationPlans, parallelExecution)
       
-      var resultList = List.empty[(String, Double, Double, Double, String)]
-      
-      if(parallelExecution){
-        
-        imputationPlans.par.foreach(plan => {
-          
-          var execResult = plan._4.run()
-          
-          if(execResult != null){
-          
-            resultList = resultList :+ (plan._4.planName, plan._2, plan._3, execResult.avgPercentError, execResult.params)
-          
-          }
-            
-          qPlan -= 1
-          val rPlan = planCount - qPlan
-          val percC = (100 - ((100 * qPlan) / planCount))
-          
-          Logger.getLogger(getClass.getName).error("Executed plans: " + rPlan + " / " + planCount + " : " + percC + "%.")
-          
-        })
-        
-      }else{
-      
-        imputationPlans.foreach(plan => {
-          
-          var execResult = plan._4.run()
-          
-          if(execResult != null){
-          
-            resultList = resultList :+ (plan._4.planName, plan._2, plan._3, execResult.avgPercentError, execResult.params)
-          
-          }
-          
-          qPlan -= 1
-          val rPlan = planCount - qPlan
-          val percC = (100 - ((100 * qPlan) / planCount))
-          
-          Logger.getLogger(getClass.getName).error("Executed plans: " + rPlan + " / " + planCount + " : " + percC + "%.")
-          
-        })
-      
-      }
-      
-      val execPlanNames = resultList.map(_._1).distinct
-      
-      var consResult = List.empty[(String, Double, Double, Double)]
-      
-      missingRate.foreach(mr => {
-        
-        selectionReduction.foreach(sr => {
-          
-          execPlanNames.foreach(planName => {
-            
-            val conRes = resultList.filter(x => x._1.equals(planName) && x._2 == mr && x._3 == sr)
-            
-            if(conRes.size > 0){
-            
-              val count = conRes.size
-              val avgPlanError = conRes.map(_._4).reduce(_ + _) / count
-              
-              consResult = consResult :+ (planName, mr, sr, avgPlanError)
-              
-            }
-            
-          })
-          
-        })
-        
-      })
+      var consResult = new Reviewer().run(resultList, missingRate, selectionReduction)
       
       Logger.getLogger(getClass.getName).error("")
       Logger.getLogger(getClass.getName).error("")

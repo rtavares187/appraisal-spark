@@ -1,7 +1,7 @@
 package appraisal.spark.executor.poc
 
 import org.apache.log4j._
-import appraisal.spark.entities.ImputationPlan
+import appraisal.spark.engine.ImputationPlan
 import org.apache.spark._
 import org.apache.spark.SparkContext._
 import org.apache.spark.sql._

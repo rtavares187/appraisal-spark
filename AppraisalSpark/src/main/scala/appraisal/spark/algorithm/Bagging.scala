@@ -2,6 +2,7 @@ package appraisal.spark.algorithm
 
 import org.apache.spark.sql._
 import appraisal.spark.entities._
+import appraisal.spark.engine._
 import appraisal.spark.util._
 import appraisal.spark.strategies._
 import scala.collection.mutable.HashMap

@@ -1,4 +1,4 @@
-package appraisal.spark.entities
+package appraisal.spark.engine
 
 import appraisal.spark.interfaces._
 import org.apache.spark.sql._
@@ -11,6 +11,7 @@ import appraisal.spark.statistic.Statistic
 import org.apache.log4j.Logger
 import org.apache.spark.broadcast._
 import org.apache.spark.sql.functions._
+import appraisal.spark.entities._
 
 class ImputationPlan(idf: DataFrame, odf: DataFrame, missingRate: Double, imputationFeature: String, features: Array[String], parallel: Boolean = true) extends Serializable {
   
