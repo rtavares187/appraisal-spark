@@ -222,36 +222,56 @@ class ImputationPlan(idf: DataFrame, odf: DataFrame, missingRate: Double, imputa
              p_imputationBatch = p_imputationBatch.filter(df => df != null && df.count() > 0 && Util.hasNullatColumn(df, is.params("imputationFeature").asInstanceOf[String])) 
            
              logStack = logStack :+ "Batch for imputation before imputation strategy: " + p_imputationBatch.size
-             logStack = logStack :+ "Running " + strategy.strategyName + "[" + strategy.algName() + "] | params: " + is.parameters
              
-             val irs = p_imputationBatch.map(x => is.run(x))
-             
-             //firs = is.combineResult(irs)
-             firs = irs.filter(_ != null).toArray.sortBy(_.avgPercentError).head
-             
-             logStack = logStack :+ "ImputationResult: " + firs.toString()
-             logStack = logStack :+ "best k: " + firs.k
-             logStack = logStack :+ "totalError: " + firs.totalError
-             logStack = logStack :+ "avgError: " + firs.avgError
-             logStack = logStack :+ "avgPercentError: " + firs.avgPercentError
+             if(p_imputationBatch.size > 0){
+               
+               logStack = logStack :+ "Running " + strategy.strategyName + "[" + strategy.algName() + "] | params: " + is.parameters
+               
+               val irs = p_imputationBatch.map(x => is.run(x))
+               
+               //firs = is.combineResult(irs)
+               firs = irs.filter(_ != null).toArray.sortBy(_.avgPercentError).head
+               
+               logStack = logStack :+ "ImputationResult: " + firs.toString()
+               logStack = logStack :+ "best k: " + firs.k
+               logStack = logStack :+ "totalError: " + firs.totalError
+               logStack = logStack :+ "avgError: " + firs.avgError
+               logStack = logStack :+ "avgPercentError: " + firs.avgPercentError
+               
+             }else{
+               
+               logStack = logStack :+ "ImputationResult: EMPTY BATCH - There is no tuples for imputation, skiping plan."
+               firs = null
+               
+             }
              
            }else{
              
              imputationBatch = imputationBatch.filter(df => df != null && df.count() > 0 && Util.hasNullatColumn(df, is.params("imputationFeature").asInstanceOf[String])) 
            
              logStack = logStack :+ "Batch for imputation before imputation strategy: " + imputationBatch.size
-             logStack = logStack :+ "Running " + strategy.strategyName + "[" + strategy.algName() + "] | params: " + is.parameters
              
-             val irs = imputationBatch.map(x => is.run(x))
+             if(imputationBatch.size > 0){
              
-             //firs = is.combineResult(irs)
-             firs = irs.filter(_ != null).toArray.sortBy(_.avgPercentError).head
-             
-             logStack = logStack :+ "ImputationResult: " + firs.toString()
-             logStack = logStack :+ "best k: " + firs.k
-             logStack = logStack :+ "totalError: " + firs.totalError
-             logStack = logStack :+ "avgError: " + firs.avgError
-             logStack = logStack :+ "avgPercentError: " + firs.avgPercentError
+               logStack = logStack :+ "Running " + strategy.strategyName + "[" + strategy.algName() + "] | params: " + is.parameters
+               
+               val irs = imputationBatch.map(x => is.run(x))
+               
+               //firs = is.combineResult(irs)
+               firs = irs.filter(_ != null).toArray.sortBy(_.avgPercentError).head
+               
+               logStack = logStack :+ "ImputationResult: " + firs.toString()
+               logStack = logStack :+ "best k: " + firs.k
+               logStack = logStack :+ "totalError: " + firs.totalError
+               logStack = logStack :+ "avgError: " + firs.avgError
+               logStack = logStack :+ "avgPercentError: " + firs.avgPercentError
+               
+             }else{
+               
+               logStack = logStack :+ "ImputationResult: EMPTY BATCH - There is no tuples for imputation, skiping plan."
+               firs = null
+               
+             }
              
            }
            

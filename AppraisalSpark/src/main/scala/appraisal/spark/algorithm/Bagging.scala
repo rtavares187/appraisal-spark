@@ -72,19 +72,44 @@ class Bagging(plan: ImputationPlan, T: Int) extends Serializable {
      
      if(plan.getParallel){
      
-       bdf.par.foreach(execB => impRes = impRes :+ (execB.planName, execB.run()))
+       bdf.par.foreach(execB => {
+         
+         var execResult = execB.run()
+         
+         if(execResult != null){
+         
+           impRes = impRes :+ (execB.planName, execResult)
+           
+         }
+         
+       })
        
      }else{
        
-       bdf.foreach(execB => impRes = impRes :+ (execB.planName, execB.run()))
+       bdf.foreach(execB => {
+         
+         var execResult = execB.run()
+         
+         if(execResult != null){
+         
+           impRes = impRes :+ (execB.planName, execResult)
+           
+         }
+         
+       })
        
+     }
+     
+     if(impRes.size == 0){
+       return null
      }
      
      if(impRes.size > 1){
        
        val _exec = impRes.filter(_ != null).toArray.sortBy(_._2.avgPercentError).head
        planName = _exec._1
-       _exec._2
+       //_exec._2
+       Util.combineResult(impRes.map(_._2))
        
      }else{
        

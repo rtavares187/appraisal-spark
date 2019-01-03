@@ -59,8 +59,8 @@ object ImputationPlanExec extends Serializable {
       val conf = new SparkConf()
       //.set("spark.executor.memory", "1g")
       //.set("spark.executor.cores", "8")
-      .set("spark.network.timeout", "3600")
-      .set("spark.sql.broadcastTimeout", "3600")
+      .set("spark.network.timeout", "10800")
+      .set("spark.sql.broadcastTimeout", "10800")
       .set("spark.executor.extraJavaOptions", "-XX:+PrintGCDetails -XX:+PrintGCTimeStamps")
       .set("spark.sql.warehouse.dir", "file:///C:/temp") // Necessary to work around a Windows bug in Spark 2.0.0; omit if you're not on Windows.
       
@@ -302,8 +302,12 @@ object ImputationPlanExec extends Serializable {
           
           var execResult = plan._4.run()
           
-          resultList = resultList :+ (plan._4.planName, plan._2, plan._3, execResult.avgPercentError, execResult.params)
+          if(execResult != null){
           
+            resultList = resultList :+ (plan._4.planName, plan._2, plan._3, execResult.avgPercentError, execResult.params)
+          
+          }
+            
           qPlan -= 1
           val rPlan = planCount - qPlan
           val percC = (100 - ((100 * qPlan) / planCount))
@@ -318,7 +322,11 @@ object ImputationPlanExec extends Serializable {
           
           var execResult = plan._4.run()
           
-          resultList = resultList :+ (plan._4.planName, plan._2, plan._3, execResult.avgPercentError, execResult.params)
+          if(execResult != null){
+          
+            resultList = resultList :+ (plan._4.planName, plan._2, plan._3, execResult.avgPercentError, execResult.params)
+          
+          }
           
           qPlan -= 1
           val rPlan = planCount - qPlan
@@ -341,10 +349,15 @@ object ImputationPlanExec extends Serializable {
           execPlanNames.foreach(planName => {
             
             val conRes = resultList.filter(x => x._1.equals(planName) && x._2 == mr && x._3 == sr)
-            val count = conRes.size
-            val avgPlanError = conRes.map(_._4).reduce(_ + _) / count
             
-            consResult = consResult :+ (planName, mr, sr, avgPlanError)
+            if(conRes.size > 0){
+            
+              val count = conRes.size
+              val avgPlanError = conRes.map(_._4).reduce(_ + _) / count
+              
+              consResult = consResult :+ (planName, mr, sr, avgPlanError)
+              
+            }
             
           })
           

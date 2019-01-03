@@ -37,9 +37,10 @@ class Knn extends ImputationAlgorithm {
     
     if(kLimit > calcDf.size) kLimit = calcDf.size
     
+    if(kLimit <= k_start)
+      return null
+    
     val ks = context.parallelize((k_start to kLimit))
-    if(ks == null || ks.isEmpty())
-      null
     
     val rdf = impDf.map(row => {
       
@@ -65,9 +66,6 @@ class Knn extends ImputationAlgorithm {
         (k, impValue, percentualError)
         
       })
-      
-      if(impByK == null || impByK.isEmpty())
-        null
       
       val impByKSelected = impByK.sortBy(_._3, true).first()
       val bestK = impByKSelected._1

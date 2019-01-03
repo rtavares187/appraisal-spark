@@ -59,8 +59,8 @@ object ImputationPlanBaggingExec extends Serializable {
       val conf = new SparkConf()
       //.set("spark.executor.memory", "1g")
       //.set("spark.executor.cores", "8")
-      .set("spark.network.timeout", "3600")
-      .set("spark.sql.broadcastTimeout", "3600")
+      .set("spark.network.timeout", "10800")
+      .set("spark.sql.broadcastTimeout", "10800")
       .set("spark.executor.extraJavaOptions", "-XX:+PrintGCDetails -XX:+PrintGCTimeStamps")
       .set("spark.sql.warehouse.dir", "file:///C:/temp") // Necessary to work around a Windows bug in Spark 2.0.0; omit if you're not on Windows.
       
@@ -309,7 +309,11 @@ object ImputationPlanBaggingExec extends Serializable {
         
           var execResult = plan._5.run()
           
-          resultList = resultList :+ (plan._5.planName, plan._2, plan._3, plan._4, execResult.avgPercentError)
+          if(execResult != null){
+          
+            resultList = resultList :+ (plan._5.planName, plan._2, plan._3, plan._4, execResult.avgPercentError)
+            
+          }
           
           qPlan -= 1
           val rPlan = planCount - qPlan
@@ -325,7 +329,11 @@ object ImputationPlanBaggingExec extends Serializable {
           
           var execResult = plan._5.run()
           
-          resultList = resultList :+ (plan._5.planName, plan._2, plan._3, plan._4, execResult.avgPercentError)
+          if(execResult != null){
+          
+            resultList = resultList :+ (plan._5.planName, plan._2, plan._3, plan._4, execResult.avgPercentError)
+            
+          }
           
           qPlan -= 1
           val rPlan = planCount - qPlan
@@ -339,7 +347,7 @@ object ImputationPlanBaggingExec extends Serializable {
       
       val execPlanNames = resultList.map(_._1).distinct
       
-      var consResult = List.empty[(String, Double, Double, Int, Double)]
+      var consResult = List.empty[(String, Double, Double, Double)]
       
       missingRate.foreach(mr => {
         
@@ -347,15 +355,16 @@ object ImputationPlanBaggingExec extends Serializable {
           
           execPlanNames.foreach(planName => {
             
-            bT.foreach(T => {
+            val conRes = resultList.filter(x => x._1.equals(planName) && x._2 == mr && x._3 == sr)
             
-              val conRes = resultList.filter(x => x._1.equals(planName) && x._2 == mr && x._3 == sr && x._4 == T)
+            if(conRes.size > 0){
+            
               val count = conRes.size
               val avgPlanError = conRes.map(_._5).reduce(_ + _) / count
               
-              consResult = consResult :+ (planName, mr, sr, T, avgPlanError)
-            
-            })
+              consResult = consResult :+ (planName, mr, sr, avgPlanError)
+              
+            }
             
           })
           
@@ -371,8 +380,7 @@ object ImputationPlanBaggingExec extends Serializable {
       consResult.foreach(x => {
         
         Logger.getLogger(getClass.getName).error("Plan: " + x._1 + "	" + "Missing rate: " + x._2 + "	" 
-                                                + "Selection reduction: " + x._3 + "	" + "T(Bagging): " + x._4 + "	" 
-                                                + "Error: " + x._5 + "%") 
+                                                + "Selection reduction: " + x._3 + "	" + "Error: " + x._4 + "%") 
         
       })
       

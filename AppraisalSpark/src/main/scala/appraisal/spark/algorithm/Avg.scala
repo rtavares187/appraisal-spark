@@ -24,7 +24,7 @@ class Avg extends ImputationAlgorithm {
     
     val avgValue = avgidf.sqlContext.sql("select avg(" + attribute + ") from originaldb").head().getAs[Double](0)
     
-    val rdf = fidf.withColumn("imputationValue", when(col(attribute).isNotNull, Util.toDouble(col(attribute))).otherwise(avgValue))
+    val rdf = fidf.withColumn("imputationValue", when(col(attribute).isNotNull, col(attribute)).otherwise(avgValue))
     
     rdf.createOrReplaceTempView("result")
     val result = rdf.sqlContext.sql("select lineId, originalValue, imputationValue from result where " + attribute + " is null").rdd
