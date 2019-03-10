@@ -96,11 +96,11 @@ object ImputationPlanExec extends Serializable {
       
       var imputationPlans = List.empty[(String, Double, Double, ImputationPlan)]
       
-      val missingRate = Seq(10d, 20d, 30d)
-      //val missingRate = Seq(10d)
+      //val missingRate = Seq(10d, 20d, 30d)
+      val missingRate = Seq(10d)
       
-      val selectionReduction = Seq(10d, 20d, 30d)
-      //val selectionReduction = Seq(10d)
+      //val selectionReduction = Seq(10d, 20d, 30d)
+      val selectionReduction = Seq(10d)
       
       features.foreach(feat => {
         

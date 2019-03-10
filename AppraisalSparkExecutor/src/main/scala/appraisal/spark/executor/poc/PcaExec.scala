@@ -25,20 +25,10 @@ object PcaExec {
         .config("spark.sql.warehouse.dir", "file:///C:/temp") // Necessary to work around a Windows bug in Spark 2.0.0; omit if you're not on Windows.
         .getOrCreate()
       
-        val features = Array[String](
-          //"code_number",
-          "clump_thickness",
-          "uniformity_of_cell_size",
-          "uniformity_of_cell_shape",
-          "marginal_adhesion",
-          "single_epithelial_cell_size",
-          "bare_nuclei",
-          "bland_chromatin",
-          "normal_nucleoli",
-          "mitoses")
-          //"class")
+      val features = appraisal.spark.executor.util.Util.breastcancer_features
+      //val features = appraisal.spark.executor.util.Util.aidsocurrence_features
           
-      val feature = features(1)
+      val feature = features(2)
         
       val odf = Util.loadBreastCancer(spark).withColumn("lineId", monotonically_increasing_id)
                                             .withColumn("originalValue", col(feature))
@@ -57,7 +47,8 @@ object PcaExec {
       
       val params: HashMap[String, Any] = HashMap(
           "imputationFeature" -> feature,
-          "percentReduction" -> percentReduction._1)
+          //"percentReduction" -> percentReduction._1)
+          "percentReduction" -> 0d)
       
       val res = new Pca().run(_vnidf, params)
       

@@ -2,7 +2,6 @@ package appraisal.spark.strategies
 
 import org.apache.spark.sql._
 import scala.collection.mutable.HashMap
-import appraisal.spark.interfaces.AppraisalStrategy
 import appraisal.spark.interfaces._
 import appraisal.spark.entities.Entities
 import org.apache.spark.broadcast._

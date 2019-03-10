@@ -1,8 +1,8 @@
-package appraisal.spark.interfaces
+package appraisal.spark.strategies
 import org.apache.spark.sql._
-import scala.collection.mutable.HashMap
 import appraisal.spark.entities._
 import org.apache.spark.broadcast._
+import appraisal.spark.interfaces.StrategyResult
 
 trait AppraisalStrategy extends Serializable {
   

@@ -13,6 +13,8 @@ import org.apache.spark.sql.functions._
 import scala.collection.mutable.HashMap
 import appraisal.spark.strategies._
 import appraisal.spark.algorithm._
+import appraisal.spark.engine.Crowner
+import appraisal.spark.engine.Reviewer
 
 object ImputationPlanBaggingExec extends Serializable {
   
@@ -94,7 +96,7 @@ object ImputationPlanBaggingExec extends Serializable {
       //val k_nsqrt = scala.math.sqrt(odf.value.count()).intValue()
       val kn = odf.count().intValue()
       
-      var imputationPlans = List.empty[(String, Double, Double, Int, Bagging)]
+      var imputationPlans = List.empty[(String, Double, Double, Int, ImputationPlan)]
       
       val missingRate = Seq(10d, 20d, 30d)
       //val missingRate = Seq(10d)
@@ -112,7 +114,8 @@ object ImputationPlanBaggingExec extends Serializable {
         
         missingRate.foreach(mr => {
           
-          val idf = new Eraser().run(odf, feature, mr)
+          //val idf = new Eraser().run(odf, feature, mr)
+          val idf = null
           
           selectionReduction.foreach(sr => {
             
@@ -149,7 +152,13 @@ object ImputationPlanBaggingExec extends Serializable {
             
             impPlanAvg.addStrategy(new ImputationStrategy(imputationParamsAvg, new Avg()))
             
-            imputationPlans = imputationPlans :+ (feature, mr, sr, T, new Bagging(impPlanAvg, T))
+            var baggingParamsAvg: HashMap[String, Any] = HashMap(
+            "imputationPlan" -> impPlanAvg,
+            "T" -> T)
+            
+            impPlanAvg.addEnsembleStrategy(new EnsembleStrategy(baggingParamsAvg, new Bagging()))
+            
+            imputationPlans = imputationPlans :+ (feature, mr, sr, T, impPlanAvg)
             
             var imputationParamsKnn: HashMap[String, Any] = HashMap(
             "k" -> 2,
@@ -157,7 +166,13 @@ object ImputationPlanBaggingExec extends Serializable {
             
             impPlanKnn.addStrategy(new ImputationStrategy(imputationParamsKnn, new Knn()))
             
-            imputationPlans = imputationPlans :+ (feature, mr, sr, T, new Bagging(impPlanKnn, T))
+            var baggingParamsKnn: HashMap[String, Any] = HashMap(
+            "imputationPlan" -> impPlanKnn,
+            "T" -> T)
+            
+            impPlanKnn.addEnsembleStrategy(new EnsembleStrategy(baggingParamsKnn, new Bagging()))
+            
+            imputationPlans = imputationPlans :+ (feature, mr, sr, T, impPlanKnn)
             
             
             
@@ -200,7 +215,13 @@ object ImputationPlanBaggingExec extends Serializable {
             
             impPlanKnn.addStrategy(new ImputationStrategy(imputationParamsKnn, new Knn()))
             
-            imputationPlans = imputationPlans :+ (feature, mr, sr, T, new Bagging(impPlanKnn, T))
+            baggingParamsKnn = HashMap(
+            "imputationPlan" -> impPlanKnn,
+            "T" -> T)
+            
+            impPlanKnn.addEnsembleStrategy(new EnsembleStrategy(baggingParamsKnn, new Bagging()))
+            
+            imputationPlans = imputationPlans :+ (feature, mr, sr, T, impPlanKnn)
             
             
             
@@ -226,7 +247,13 @@ object ImputationPlanBaggingExec extends Serializable {
             
             impPlanAvg.addStrategy(new ImputationStrategy(imputationParamsAvg, new Avg()))
             
-            imputationPlans = imputationPlans :+ (feature, mr, sr, T, new Bagging(impPlanAvg, T))
+            baggingParamsAvg = HashMap(
+            "imputationPlan" -> impPlanAvg,
+            "T" -> T)
+            
+            impPlanAvg.addEnsembleStrategy(new EnsembleStrategy(baggingParamsAvg, new Bagging()))
+            
+            imputationPlans = imputationPlans :+ (feature, mr, sr, T, impPlanAvg)
             
             imputationParamsKnn = HashMap(
             "k" -> 2,
@@ -234,7 +261,13 @@ object ImputationPlanBaggingExec extends Serializable {
             
             impPlanKnn.addStrategy(new ImputationStrategy(imputationParamsKnn, new Knn()))
             
-            imputationPlans = imputationPlans :+ (feature, mr, sr, T, new Bagging(impPlanKnn, T))
+            baggingParamsKnn = HashMap(
+            "imputationPlan" -> impPlanKnn,
+            "T" -> T)
+            
+            impPlanKnn.addEnsembleStrategy(new EnsembleStrategy(baggingParamsKnn, new Bagging()))
+            
+            imputationPlans = imputationPlans :+ (feature, mr, sr, T, impPlanKnn)
             
             
             
@@ -264,7 +297,13 @@ object ImputationPlanBaggingExec extends Serializable {
             
             impPlanKnn.addStrategy(new ImputationStrategy(imputationParamsKnn, new Knn()))
             
-            imputationPlans = imputationPlans :+ (feature, mr, sr, T, new Bagging(impPlanKnn, T))
+            baggingParamsKnn = HashMap(
+            "imputationPlan" -> impPlanKnn,
+            "T" -> T)
+            
+            impPlanKnn.addEnsembleStrategy(new EnsembleStrategy(baggingParamsKnn, new Bagging()))
+            
+            imputationPlans = imputationPlans :+ (feature, mr, sr, T, impPlanKnn)
             
             
             
@@ -277,7 +316,13 @@ object ImputationPlanBaggingExec extends Serializable {
             
             impPlanAvg.addStrategy(new ImputationStrategy(imputationParamsAvg, new Avg()))
             
-            imputationPlans = imputationPlans :+ (feature, mr, sr, T, new Bagging(impPlanAvg, T))
+            baggingParamsAvg = HashMap(
+            "imputationPlan" -> impPlanAvg,
+            "T" -> T)
+            
+            impPlanAvg.addEnsembleStrategy(new EnsembleStrategy(baggingParamsAvg, new Bagging()))
+            
+            imputationPlans = imputationPlans :+ (feature, mr, sr, T, impPlanAvg)
             
             imputationParamsKnn = HashMap(
             "k" -> 2,
@@ -285,7 +330,13 @@ object ImputationPlanBaggingExec extends Serializable {
             
             impPlanKnn.addStrategy(new ImputationStrategy(imputationParamsKnn, new Knn()))
             
-            imputationPlans = imputationPlans :+ (feature, mr, sr, T, new Bagging(impPlanKnn, T))
+            baggingParamsKnn = HashMap(
+            "imputationPlan" -> impPlanKnn,
+            "T" -> T)
+            
+            impPlanKnn.addEnsembleStrategy(new EnsembleStrategy(baggingParamsKnn, new Bagging()))
+            
+            imputationPlans = imputationPlans :+ (feature, mr, sr, T, impPlanKnn)
               
             })
             
@@ -298,79 +349,9 @@ object ImputationPlanBaggingExec extends Serializable {
       //val imputationPlansRdd = spark.sparkContext.parallelize(imputationPlans)
       //imputationPlansRdd.map(plan => (plan.planName, plan.run())).foreach(println(_))
       
-      val planCount = imputationPlans.size
-      var qPlan = planCount
+      var resultList = new Crowner().runEnsemle(imputationPlans, parallelExecution)
       
-      var resultList = List.empty[(String, Double, Double, Int, Double)]
-      
-      if(parallelExecution){
-        
-        imputationPlans.par.foreach(plan => {
-        
-          var execResult = plan._5.run()
-          
-          if(execResult != null){
-          
-            resultList = resultList :+ (plan._5.planName, plan._2, plan._3, plan._4, execResult.avgPercentError)
-            
-          }
-          
-          qPlan -= 1
-          val rPlan = planCount - qPlan
-          val percC = (100 - ((100 * qPlan) / planCount))
-          
-          Logger.getLogger(getClass.getName).error("Executed plans: " + rPlan + " / " + planCount + " : " + percC + "%.")
-        
-        })
-        
-      }else{
-      
-        imputationPlans.foreach(plan => {
-          
-          var execResult = plan._5.run()
-          
-          if(execResult != null){
-          
-            resultList = resultList :+ (plan._5.planName, plan._2, plan._3, plan._4, execResult.avgPercentError)
-            
-          }
-          
-          qPlan -= 1
-          val rPlan = planCount - qPlan
-          val percC = (100 - ((100 * qPlan) / planCount))
-          
-          Logger.getLogger(getClass.getName).error("Executed plans: " + rPlan + " / " + planCount + " : " + percC + "%.")
-          
-        })
-        
-      }
-      
-      val execPlanNames = resultList.map(_._1).distinct
-      
-      var consResult = List.empty[(String, Double, Double, Double)]
-      
-      missingRate.foreach(mr => {
-        
-        selectionReduction.foreach(sr => {
-          
-          execPlanNames.foreach(planName => {
-            
-            val conRes = resultList.filter(x => x._1.equals(planName) && x._2 == mr && x._3 == sr)
-            
-            if(conRes.size > 0){
-            
-              val count = conRes.size
-              val avgPlanError = conRes.map(_._5).reduce(_ + _) / count
-              
-              consResult = consResult :+ (planName, mr, sr, avgPlanError)
-              
-            }
-            
-          })
-          
-        })
-        
-      })
+      var consResult = new Reviewer().runEnsemble(resultList, missingRate, selectionReduction)
       
       Logger.getLogger(getClass.getName).error("")
       Logger.getLogger(getClass.getName).error("")
