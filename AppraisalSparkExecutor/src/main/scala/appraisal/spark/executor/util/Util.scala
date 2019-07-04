@@ -64,4 +64,10 @@ object Util {
     
   }
   
+  def loadData(spark:SparkSession, filePath:String): DataFrame = {
+    
+    spark.read.option("header", true).csv(filePath)
+    
+  }
+  
 }

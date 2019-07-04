@@ -79,12 +79,12 @@ object ImputationPlanExec extends Serializable {
       
       if(breastCancer){
         
-        odf = Util.loadBreastCancer(spark).withColumn("lineId", monotonically_increasing_id)
+        odf = Util.loadData(spark, "file:///shared/appraisal/breast_cancer_wisconsin.csv").withColumn("lineId", monotonically_increasing_id)
         features = Util.breastcancer_features
       
       }else if(aidsOccurrence){
         
-        odf = Util.loadAidsOccurenceAndDeath(spark).withColumn("lineId", monotonically_increasing_id)
+        odf = Util.loadData(spark, "file:///shared/appraisal/AIDS_Occurrence_and_Death_and_Queries.csv").withColumn("lineId", monotonically_increasing_id)
         features = Util.aidsocurrence_features
         
       }

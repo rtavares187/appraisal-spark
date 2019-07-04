@@ -47,6 +47,25 @@ object CorrelationMatrix {
       
       Logger.getLogger("appraisal").error(dfcorrbc.show(dfcorrbc.count().intValue(), false))
       
+      var count = 0
+      var irdd = dfcorrbc.rdd.zipWithIndex().map(l => (l._2, l._1))
+      
+      for(i <- 0 to (dfcorrbc.count().intValue() - 1)){
+      
+        val row = irdd.lookup(i).head
+        
+        for(r <- 0 to (row.length - 1)){
+          
+          val v = row.getAs[String](r).replace(",", ".").toDouble
+          if(v > 0.5)
+            count = count + 1
+        
+        }
+            
+      }
+        
+      Logger.getLogger("appraisal").error("Number of correlations greater than 50%: " + count)
+      
       Logger.getLogger("appraisal").error("")
       
       var dfaids = Util.loadAidsOccurenceAndDeath(spark)
@@ -64,6 +83,25 @@ object CorrelationMatrix {
       dfcorraids = dfcorraids.sqlContext.sql("select * from dfcorraids")
       
       Logger.getLogger("appraisal").error(dfcorraids.show(dfcorraids.count().intValue(), false))
+      
+      count = 0
+      irdd = dfcorraids.rdd.zipWithIndex().map(l => (l._2, l._1))
+      
+      for(i <- 0 to (dfcorrbc.count().intValue() - 1)){
+      
+        val row = irdd.lookup(i).head
+        
+        for(r <- 0 to (row.length - 1)){
+          
+          val v = row.getAs[String](r).replace(",", ".").toDouble
+          if(v > 0.5)
+            count = count + 1
+        
+        }
+            
+      }
+        
+      Logger.getLogger("appraisal").error("Number of correlations greater than 50%: " + count)
       
     }catch{
       
