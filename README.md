@@ -19,8 +19,9 @@ Appraisal-Spark was used for imputation in two databases, with different charact
 of correlation between its attributes. Experiments in Appraisal-Spark are serially and parallelly
 performed, exploring the use of the Apache Spark tool.
 
+There are examples using several algorithms in multiple imputation plans described in the package: appraisal-spark/AppraisalSparkExecutor/src/main/scala/appraisal/spark/executor/poc/
+
 Below is an example of how to use Appraisal Spark with different imputation plans using the Bagging technique in two databases:
-* There are examples using several algorithms described in the package: appraisal-spark/AppraisalSparkExecutor/src/main/scala/appraisal/spark/executor/poc/
 
     val kn = odf.count().intValue()
       
